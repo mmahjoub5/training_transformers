@@ -1,0 +1,11 @@
+name: transformer_llm
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pytest
+  - tensorboard
+  - pip
+  - pip:
+      - -r requirements.in
+
