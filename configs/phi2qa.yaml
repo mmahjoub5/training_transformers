@@ -1,0 +1,39 @@
+model:
+  name: microsoft/phi-2
+  kind: clm
+
+data:
+  name: dany0407/eli5_category
+  split: null
+  config_name: null
+  train_split: train
+  val_split: validation
+  test_split: null
+  max_train_samples: 20000
+  max_val_samples: 2000
+  shuffle_train: true
+  seed: 42
+
+tokenizer:
+  max_length: 256
+
+training:
+  batch_size: 8
+  lr: 3e-5
+  epochs: 10
+  output_dir: output/distilbert_qa/
+  weight_decay: 0.01
+  eval_steps: 50
+  gradient_accumulation_steps: 4
+
+
+runtime:
+  device: cpu
+  precision: fp32
+
+logging:
+  report_to: tensorboard
+  logging_dir: "./runs"
+  log_every: 10
+  save_every: 500
+  level: info

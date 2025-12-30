@@ -1,0 +1,39 @@
+model:
+  name: HuggingFaceTB/SmolLM-135M
+  kind: clm
+
+data:
+  name: dany0407/eli5_category
+  split: null
+  config_name: null
+  train_split: train
+  val_split: validation
+  test_split: null
+  max_train_samples: 100
+  max_val_samples: null #val is 0.2 of max train
+  shuffle_train: true
+  seed: 42
+
+tokenizer:
+  max_length: 256
+
+training:
+  batch_size: 1
+  lr: 3e-5
+  epochs: 10
+  output_dir: output/1229/smollm-135m/
+  weight_decay: 0.01
+  eval_steps: 50
+  gradient_accumulation_steps: 4
+
+
+runtime:
+  device: cpu
+  precision: fp32
+
+logging:
+  report_to: tensorboard
+  logging_dir: "./smollm1229/runs"
+  log_every: 10
+  save_every: 500
+  level: info
