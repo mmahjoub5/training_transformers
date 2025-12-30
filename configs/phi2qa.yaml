@@ -9,8 +9,8 @@ data:
   train_split: train
   val_split: validation
   test_split: null
-  max_train_samples: 20000
-  max_val_samples: 2000
+  max_train_samples: null
+  max_val_samples: null
   shuffle_train: true
   seed: 42
 
@@ -21,7 +21,7 @@ training:
   batch_size: 8
   lr: 3e-5
   epochs: 10
-  output_dir: output/distilbert_qa/
+  output_dir: output/1229/phi2/
   weight_decay: 0.01
   eval_steps: 50
   gradient_accumulation_steps: 4
@@ -33,7 +33,7 @@ runtime:
 
 logging:
   report_to: tensorboard
-  logging_dir: "./runs"
+  logging_dir: "./phi2/1229/runs"
   log_every: 10
   save_every: 500
   level: info
