@@ -7,7 +7,21 @@ from src.data.preprocess import preprocess_dataset
 from transformers import TrainingArguments, Trainer
 from src.metrics.compute_metrics import QAMetricsComputer
 from src.data.eli_preprocess import ELI5Preprocessor_QA
+import argparse
+# arg parse for input config 
 
+parser = argparse.ArgumentParser(
+        description="Train QA model with YAML config"
+)
+
+parser.add_argument(
+    "--config",
+    type=str,
+    required=True,
+    help="Path to YAML config file (e.g. configs/smollm-135m.yaml)",
+)
+
+args = parser.parse_args()
 
 def _cuda_bf16_supported() -> bool:
     # bf16 is typically supported on Ampere (A100/3090) and newer
@@ -15,7 +29,7 @@ def _cuda_bf16_supported() -> bool:
 
 
 if __name__ == "__main__":
-    config = load_config("configs/smollm-135m.yaml")
+    config = load_config(args.config)
 
     # --- Device / precision setup ---
     use_cuda = torch.cuda.is_available()
