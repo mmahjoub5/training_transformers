@@ -40,31 +40,31 @@ if __name__ == "__main__":
     # )
 
 
-    # training_args = TrainingArguments(
-    #     output_dir=config["training"]["output_dir"],
-    #     per_device_train_batch_size=config["training"]["batch_size"],
-    #     per_device_eval_batch_size=config["training"]["batch_size"],
-    #     learning_rate=float(config["training"]["lr"]),
-    #     num_train_epochs=config["training"]["epochs"],
-    #     weight_decay=config["training"].get("weight_decay", 0.0),
-    #     logging_steps=config["logging"].get("logging_steps", 100),
-    #     save_steps=config["logging"].get("save_steps", 100),
-    #     report_to=config["logging"].get("report_to", []),
-    #     logging_dir=config["logging"].get("logging_dir", "./runs"),
-    #     dataloader_pin_memory=False,  # for CPU training
-    #     # evaluation
-    #     eval_strategy="epoch",
-    #     save_strategy="epoch",
-    #     gradient_accumulation_steps=config["training"].get("gradient_accumulation_steps", 1)
-    # )
+    training_args = TrainingArguments(
+        output_dir=config["training"]["output_dir"],
+        per_device_train_batch_size=config["training"]["batch_size"],
+        per_device_eval_batch_size=config["training"]["batch_size"],
+        learning_rate=float(config["training"]["lr"]),
+        num_train_epochs=config["training"]["epochs"],
+        weight_decay=config["training"].get("weight_decay", 0.0),
+        logging_steps=config["logging"].get("logging_steps", 100),
+        save_steps=config["logging"].get("save_steps", 100),
+        report_to=config["logging"].get("report_to", []),
+        logging_dir=config["logging"].get("logging_dir", "./runs"),
+        dataloader_pin_memory=False,  # for CPU training
+        # evaluation
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        gradient_accumulation_steps=config["training"].get("gradient_accumulation_steps", 1)
+    )
 
-    # trainer = Trainer(
-    #     model=model,
-    #     args=training_args,
-    #     train_dataset=tokenized_eli5["train"],
-    #     eval_dataset=tokenized_eli5["test"],
-    #     tokenizer=tokenizer,
-    #     #compute_metrics=metrics_computer,
-    # )
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_eli5["train"],
+        eval_dataset=tokenized_eli5["test"],
+        tokenizer=tokenizer,
+        #compute_metrics=metrics_computer,
+    )
 
-    # trainer.train()
+    trainer.train()
