@@ -68,7 +68,10 @@ if __name__ == "__main__":
     # But moving explicitly is fine too:
     # model.to(device)
 
-    preprocessor = ELI5Preprocessor_QA(tokenizer)
+    preprocessor = ELI5Preprocessor_QA(tokenizer, 
+                                       max_length=2048,
+                                       truncation=True)
+    
     raw_ds = load_dataset_generic(config["data"])
     raw_ds = raw_ds["train"].train_test_split(test_size=0.2)
     raw_ds = raw_ds.flatten()

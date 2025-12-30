@@ -44,19 +44,20 @@ Adds -100 on label for question tokens. so the loss is only computed on answer t
 
 """
 class ELI5Preprocessor_QA:
-    def __init__(self, tokenizer, max_length=512):
+    def __init__(self, tokenizer, max_length=512,**tokenizer_kwargs):
         self.tokenizer = tokenizer
         self.max_length = max_length
         # For many decoder-only models, pad_token may be None; EOS-as-pad is common.
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.tokenizer_kwargs = tokenizer_kwargs
 
     def __call__(self, examples):
         q_text = f"Question: {examples['title']}\nAnswer:"
         a_text = examples["answers.text"][0]
         
-        answer_token = self.tokenizer(a_text, add_special_tokens=False)
-        question_token = self.tokenizer(q_text, add_special_tokens=False)
+        answer_token = self.tokenizer(a_text, add_special_tokens=False, max_length=self.max_length, **self.tokenizer_kwargs )
+        question_token = self.tokenizer(q_text, add_special_tokens=False,  max_length=self.max_length, **self.tokenizer_kwargs)
         input_ids = question_token["input_ids"] + answer_token["input_ids"]
         
         # Split by chunks of block_size.
