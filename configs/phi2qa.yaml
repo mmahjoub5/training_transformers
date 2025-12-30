@@ -15,16 +15,16 @@ data:
   seed: 42
 
 tokenizer:
-  max_length: 256
+  max_length: 512
 
 training:
-  batch_size: 8
+  batch_size: 1
   lr: 3e-5
   epochs: 10
   output_dir: output/1229/phi2/
   weight_decay: 0.01
   eval_steps: 50
-  gradient_accumulation_steps: 4
+  gradient_accumulation_steps: 8
   gradient_checkpointing: true
 
 

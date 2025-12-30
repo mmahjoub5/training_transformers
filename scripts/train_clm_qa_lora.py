@@ -21,6 +21,15 @@ parser.add_argument(
     help="Path to YAML config file (e.g. configs/smollm-135m.yaml)",
 )
 
+parser.add_argument(
+    "--proc",
+    type=int,
+    required=False,
+    default=1,
+    help="Path to YAML config file (e.g. configs/smollm-135m.yaml)",
+)
+
+
 args = parser.parse_args()
 
 def _cuda_bf16_supported() -> bool:
@@ -69,7 +78,7 @@ if __name__ == "__main__":
     # model.to(device)
 
     preprocessor = ELI5Preprocessor_QA(tokenizer, 
-                                       max_length=2048,
+                                       max_length=config["tokenizer"]["max_length"],
                                        truncation=True)
     
     raw_ds = load_dataset_generic(config["data"])
@@ -82,7 +91,7 @@ if __name__ == "__main__":
     tokenized_eli5 = raw_ds.map(
         preprocessor,
         batched=False,
-        num_proc=1,
+        num_proc=args.proc,
         remove_columns=raw_ds["train"].column_names,
     )
     print(tokenized_eli5.shape)
