@@ -69,4 +69,12 @@ conda activate "$ENV_NAME"
 ###############################################
 # RUN Script
 ###############################################
-python -m scripts.train_clm_qa_lora --config configs/phi2qa_lora.yaml --proc 4
+
+python -m  scripts.test.phi2_validation_script  \
+  --json data/qa_prompts.jsonl \
+  --checkpoint /home/ubuntu/training_transformers/output/1231/phi2/checkpoint-500\
+  --baseline microsoft/phi-2 \
+  --output results.json \
+  --max-tokens 200 \
+  --temperature 0.7 \
+  --quiet
