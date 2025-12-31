@@ -68,6 +68,11 @@ if __name__ == "__main__":
         attn_implementation="sdpa",
         
     )
+    import torch
+    print("++++++++++++++++++++++++++++++++++++++++++++++")
+    print(torch.backends.cuda.sdp_kernel)
+    print("++++++++++++++++++++++++++++++++++++++++++++++")
+    model.config.use_cache = False
 
     # Optional: gradient checkpointing to reduce VRAM (slower but useful)
     if config["training"].get("gradient_checkpointing", False):
