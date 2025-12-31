@@ -21,7 +21,7 @@ training:
   batch_size: 2
   lr: 3e-5
   epochs: 10
-  output_dir: output/1230/phi2/
+  output_dir: output/1231/phi2/
   eval_steps: 50
   gradient_accumulation_steps: 8
   gradient_checkpointing: true
@@ -32,7 +32,7 @@ training:
 
 logging:
   report_to: tensorboard
-  logging_dir: "./phi2/1230/runs"
+  logging_dir: "./phi2/1231/runs"
   log_every: 10
   save_every: 500
   level: info
