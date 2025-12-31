@@ -44,7 +44,6 @@ REPO_URL="https://github.com/mmahjoub5/training_transformers.git"
 REPO_DIR="training_transformers"
 ENV_NAME="llm_env"
 
-cd "$REPO_DIR"
 
 # Make conda available in this script
 source "$(conda info --base)/etc/profile.d/conda.sh"
