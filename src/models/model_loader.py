@@ -18,9 +18,9 @@ ModelKind = Literal["qa", "clm"]  # qa = span-extractive, clm = causal language 
 def load_model(
     model_name: str,
     kind: ModelKind,
-    *,
     precision: Literal["fp32", "fp16", "bf16"] = "fp32",
     trust_remote_code: bool = False,
+    **args,
 ) -> Tuple[PreTrainedTokenizerBase, PreTrainedModel]:
     """
     Minimal model loader.
@@ -52,7 +52,7 @@ def load_model(
 
     if kind == "clm":
         model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
+            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code, **args
         )
 
         # Many decoder-only tokenizers don't have a pad token; set it to eos for batching.

@@ -64,7 +64,9 @@ if __name__ == "__main__":
     tokenizer, model = load_model(
         model_name=config["model"]["name"],
         kind=config["model"]["kind"],
-        precision=precision,  # keep your existing contract
+        precision=precision,  # keep your existing contract,
+        attn_implementation="sdpa",
+        
     )
 
     # Optional: gradient checkpointing to reduce VRAM (slower but useful)
