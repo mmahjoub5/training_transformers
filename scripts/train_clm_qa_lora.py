@@ -138,7 +138,7 @@ if __name__ == "__main__":
         # Mixed precision (CUDA only)
         fp16=use_fp16,
         bf16=use_bf16,
-
+        tf32=True, 
         # Evaluation / saving strategies
         eval_strategy="epoch",
         save_strategy="epoch",
