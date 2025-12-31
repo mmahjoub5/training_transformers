@@ -22,11 +22,11 @@ training:
   lr: 3e-5
   epochs: 10
   output_dir: output/1230/phi2/
-  weight_decay: 0.01
   eval_steps: 50
   gradient_accumulation_steps: 8
   gradient_checkpointing: true
   precision: bf16
+  max_steps: 12000
 
 
 

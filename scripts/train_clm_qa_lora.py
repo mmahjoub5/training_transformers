@@ -131,6 +131,9 @@ if __name__ == "__main__":
         report_to=config["logging"].get("report_to", []),
         logging_dir=config["logging"].get("logging_dir", "./runs"),
 
+        #steps 
+        max_steps=config["training"].get("max_steps", -1),
+
         # --- GPU performance knobs ---
         dataloader_pin_memory=use_cuda,  # True on GPU, False on CPU
         dataloader_num_workers=config["training"].get("num_workers", 4),
@@ -138,7 +141,7 @@ if __name__ == "__main__":
         # Mixed precision (CUDA only)
         fp16=use_fp16,
         bf16=use_bf16,
-        tf32=True, 
+        tf32=use_fp16, 
         # Evaluation / saving strategies
         eval_strategy="epoch",
         save_strategy="epoch",
