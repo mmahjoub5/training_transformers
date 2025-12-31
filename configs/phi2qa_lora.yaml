@@ -40,5 +40,5 @@ lora:
   lora_alpha: 12
   lora_droput: 0.05
   bias: none
-  task_type: CASUAL_LM
+  task_type: CAUSAL_LM
 

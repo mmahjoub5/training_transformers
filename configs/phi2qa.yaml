@@ -35,10 +35,3 @@ logging:
   save_every: 500
   level: info
 
-lora:
-  rank: 16
-  lora_alpha: 12
-  lora_droput: 0.05
-  bias: none
-  task_type: CASUAL_LM
-
