@@ -26,6 +26,8 @@ training:
   eval_steps: 50
   gradient_accumulation_steps: 8
   gradient_checkpointing: true
+  precision: bf16
+
 
 
 logging:
