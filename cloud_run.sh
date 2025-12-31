@@ -38,58 +38,10 @@ else
 fi
 
 ###############################################
-# CHECK FOR GIT
-###############################################
-if command -v git >/dev/null 2>&1; then
-  echo "✅ Git already installed"
-else
-  echo "⚠️ Git not found — installing"
-
-  OS="$(uname -s)"
-
-  if [[ "$OS" == "Linux" ]]; then
-    if command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get update -y
-      sudo apt-get install -y git
-    elif command -v yum >/dev/null 2>&1; then
-      sudo yum install -y git
-    else
-      echo "❌ Unsupported Linux package manager"
-      exit 1
-    fi
-
-  elif [[ "$OS" == "Darwin" ]]; then
-    # macOS: git comes with Xcode Command Line Tools
-    if ! xcode-select -p >/dev/null 2>&1; then
-      echo "📦 Installing Xcode Command Line Tools (git)"
-      xcode-select --install
-      echo "⚠️ Please rerun the script after installation completes"
-      exit 1
-    fi
-  else
-    echo "❌ Unsupported OS: $OS"
-    exit 1
-  fi
-
-  echo "✅ Git installed"
-fi
-
-###############################################
-# CLONE REPO
+# Set up ENV
 ###############################################
 REPO_URL="https://github.com/mmahjoub5/training_transformers.git"
 REPO_DIR="training_transformers"
-
-if [[ -d "$REPO_DIR" ]]; then
-  echo "⚠️ Repo '$REPO_DIR' already exists — skipping clone"
-else
-  echo "⬇️ Cloning repository"
-  git clone "$REPO_URL"
-fi
-
-###############################################
-# Set up ENV
-###############################################
 ENV_NAME="llm_env"
 
 cd "$REPO_DIR"
