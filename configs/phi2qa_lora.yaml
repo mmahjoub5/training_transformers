@@ -33,7 +33,7 @@ training:
 logging:
   report_to: tensorboard
   logging_dir: "./phi2/1231/runs"
-  log_every: 10
+  logging_steps: 10
   save_steps: 500
   level: info
   save_strategy: steps
