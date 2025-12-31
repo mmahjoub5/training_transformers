@@ -8,6 +8,7 @@ from transformers import TrainingArguments, Trainer
 from src.metrics.compute_metrics import QAMetricsComputer
 from src.data.eli_preprocess import ELI5Preprocessor_QA
 import argparse
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 # arg parse for input config 
 
 parser = argparse.ArgumentParser(
@@ -95,6 +96,19 @@ if __name__ == "__main__":
         remove_columns=raw_ds["train"].column_names,
     )
     print(tokenized_eli5.shape)
+
+    if config.get("lora", None) is not None:
+        lora_cfg = LoraConfig(
+            r= config["lora"].get("rank", 16),
+            lora_alpha=config["lora"].get("lora_alpha", 12),
+            lora_dropout=config["lora"].get("lora_droput", 0.05),
+            bias=config["lora"].get("bias", "bias"),
+            task_type=config["lora"].get("task_type", "CAUSAL_LM"),
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],  # common for decoder LMs
+        )
+        model = get_peft_model(model, lora_cfg)
+        model.print_trainable_parameters()
+
 
     training_args = TrainingArguments(
         output_dir=config["training"]["output_dir"],

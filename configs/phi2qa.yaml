@@ -28,13 +28,17 @@ training:
   gradient_checkpointing: true
 
 
-runtime:
-  device: cpu
-  precision: fp32
-
 logging:
   report_to: tensorboard
   logging_dir: "./phi2/1229/runs"
   log_every: 10
   save_every: 500
   level: info
+
+lora:
+  r: 16
+  lora_alpha: 12
+  lora_droput: 0.05
+  bias: none
+  task_type: CASUAL_LM
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
