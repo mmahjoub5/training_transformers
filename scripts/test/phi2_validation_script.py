@@ -249,12 +249,19 @@ def main():
     print(f"✓ Loaded {len(prompts)} prompts")
     
     # Setup configurations
-    model_config = ModelConfig(model_name=args.checkpoint, device_map="auto", precision="fp16")
-    baseline_config = ModelConfig(model_name=args.baseline, device_map="auto", precision="fp16")
+    model_config = ModelConfig(
+        model_name=args.checkpoint, 
+        device_map="auto", 
+        precision="fp16")
+    baseline_config = ModelConfig(
+        model_name=args.baseline, 
+        device_map="auto", 
+        precision="fp16")
     gen_config = GenerationConfig(
         max_new_tokens=args.max_tokens,
         temperature=args.temperature,
-        top_p=args.top_p
+        top_p=args.top_p,
+        do_sample=False # Greedy decoding 
     )
     
     # Load models
