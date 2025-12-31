@@ -54,13 +54,13 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
   if [ "$FORCE_UPDATE" = "true" ]; then
     echo "🔄 Updating conda env '$ENV_NAME' from environment.yml (FORCE_UPDATE=true)"
-    conda env update -n "$ENV_NAME" -f ./environment.yml --prune
+    conda env update -n "$ENV_NAME" -f ./environment.yml --prune -y
   else
     echo "✅ Conda env '$ENV_NAME' already exists — skipping update (set FORCE_UPDATE=true to update)"
   fi
 else
   echo "🚀 Creating conda env '$ENV_NAME' from environment.yml"
-  conda env create -n "$ENV_NAME" -f ./environment.yml
+  conda env create -n "$ENV_NAME" -f ./environment.yml -y
 fi
 
 # Activate env

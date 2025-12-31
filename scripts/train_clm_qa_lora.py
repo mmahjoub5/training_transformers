@@ -130,6 +130,7 @@ if __name__ == "__main__":
         save_steps=config["logging"].get("save_steps", 100),
         report_to=config["logging"].get("report_to", []),
         logging_dir=config["logging"].get("logging_dir", "./runs"),
+        save_strategy=config["logging"].get("save_strategy", "epochs"),
 
         #steps 
         max_steps=config["training"].get("max_steps", -1),
@@ -144,7 +145,7 @@ if __name__ == "__main__":
         tf32=use_fp16, 
         # Evaluation / saving strategies
         eval_strategy="epoch",
-        save_strategy="epoch",
+        
 
         gradient_accumulation_steps=config["training"].get("gradient_accumulation_steps", 1),
 

@@ -34,8 +34,9 @@ logging:
   report_to: tensorboard
   logging_dir: "./phi2/1231/runs"
   log_every: 10
-  save_every: 500
+  save_steps: 500
   level: info
+  save_strategy: steps
 
 lora:
   rank: 16
