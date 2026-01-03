@@ -4,13 +4,17 @@ from src.models.model_loader import load_model, quick_info
 from src.core.config import load_config
 from src.data.dataset_loader import load_dataset_generic
 from src.data.preprocess import preprocess_dataset
+from src.config.model_config import ModelConfig
+from src.config.training_config import TrainingConfig
+from src.config.lora_config import LoraConfigSpec
+from src.config.logging_config import LoggingConfig
 from transformers import TrainingArguments, Trainer
 from src.metrics.compute_metrics import QAMetricsComputer
 from src.data.eli_preprocess import ELI5Preprocessor_QA
 from src.data.data_utils import PREPROCESSOR_REGISTRY
 import argparse
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 
 # arg parse for input config 
 
@@ -43,6 +47,10 @@ def _cuda_bf16_supported() -> bool:
 
 def main():
     config = load_config(args.config)
+    model_config = ModelConfig.from_dict(config)
+    training_config = TrainingConfig.from_dict(config)
+    logging_config = LoggingConfig.from_dict(config)
+    lora_config = LoraConfigSpec.from_dict(config) if config.get("lora") is not None else None
 
     # --- Device / precision setup ---
     use_cuda = torch.cuda.is_available()
@@ -52,7 +60,7 @@ def main():
         print("GPU:", torch.cuda.get_device_name(0))
 
     # precision from config: "fp32" | "fp16" | "bf16"
-    precision = config["training"].get("precision", "fp32").lower()
+    precision = training_config.precision.lower()
 
     # Decide dtype flags for Trainer AMP
     use_bf16 = (precision == "bf16") and _cuda_bf16_supported()
@@ -65,11 +73,11 @@ def main():
 
     # Load model/tokenizer (your loader may already handle dtype; AMP is controlled by TrainingArguments)
     tokenizer, model = load_model(
-        model_name=config["model"]["name"],
-        kind=config["model"]["kind"],
-        precision=precision,  # keep your existing contract,
-        attn_implementation=config["model"].get("attn_implementation", "sdpa"),
-        
+        model_name=model_config.model_name,
+        kind=model_config.kind,
+        precision=precision,
+        attn_implementation=model_config.attn_implementation,
+        device_map = "auto"
     )
     tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
@@ -83,7 +91,7 @@ def main():
     model.config.use_cache = False
 
     # Optional: gradient checkpointing to reduce VRAM (slower but useful)
-    if config["training"].get("gradient_checkpointing", False):
+    if training_config.gradient_checkpointing:
         model.gradient_checkpointing_enable()
         # helps avoid warnings / extra memory during training
         if hasattr(model.config, "use_cache"):
@@ -101,7 +109,8 @@ def main():
     print("Raw dataset splits:", raw_ds)
     print("Raw dataset example:", raw_ds["train"][0])
     
-
+    if config["data"]["preprocessor"] == "ELI5Preprocessor_QA":
+        raw_ds = raw_ds.flatten()
     processed_data = raw_ds.map(
         preprocessor,
         batched=False,
@@ -115,40 +124,40 @@ def main():
 
 
 
-    if config.get("lora", None) is not None:
+    if lora_config is not None:
         lora_cfg = LoraConfig(
-            r= config["lora"].get("rank", 16),
-            lora_alpha=config["lora"].get("lora_alpha", 12),
-            lora_dropout=config["lora"].get("lora_dropout", 0.05),
-            bias=config["lora"].get("bias", "bias"),
-            task_type=config["lora"].get("task_type", "CAUSAL_LM"),
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],  # common for decoder LMs
+            r=lora_config.rank,
+            lora_alpha=lora_config.lora_alpha,
+            lora_dropout=lora_config.lora_dropout,
+            bias=lora_config.bias,
+            task_type=lora_config.task_type,
+            target_modules=lora_config.target_modules,  # common for decoder LMs
         )
     else :
         lora_cfg = None
 
 
-    training_args = TrainingArguments(
-        output_dir=config["training"]["output_dir"],
-        per_device_train_batch_size=config["training"]["batch_size"],
-        per_device_eval_batch_size=config["training"]["batch_size"],
-        learning_rate=float(config["training"]["lr"]),
-        num_train_epochs=config["training"]["epochs"],
-        weight_decay=config["training"].get("weight_decay", 0.0),
+    training_args = SFTConfig(
+        output_dir=training_config.output_dir,
+        per_device_train_batch_size=training_config.batch_size,
+        per_device_eval_batch_size=training_config.batch_size,
+        learning_rate=training_config.lr,
+        num_train_epochs=training_config.epochs,
+        weight_decay=training_config.weight_decay,
 
         # Logging / saving
-        logging_steps=config["logging"].get("logging_steps", 100),
-        save_steps=config["logging"].get("save_steps", 100),
-        report_to=config["logging"].get("report_to", []),
-        logging_dir=config["logging"].get("logging_dir", "./runs"),
-        save_strategy=config["logging"].get("save_strategy", "epochs"),
+        logging_steps=logging_config.logging_steps,
+        save_steps=logging_config.save_steps,
+        report_to=logging_config.report_to,
+        logging_dir=logging_config.logging_dir,
+        save_strategy=logging_config.save_strategy,
 
         #steps 
-        max_steps=config["training"].get("max_steps", -1),
+        max_steps=training_config.max_steps,
 
         # --- GPU performance knobs ---
         dataloader_pin_memory=use_cuda,  # True on GPU, False on CPU
-        dataloader_num_workers=config["training"].get("num_workers", 4),
+        dataloader_num_workers=training_config.num_workers,
 
         # Mixed precision (CUDA only)
         fp16=use_fp16,
@@ -158,27 +167,29 @@ def main():
         eval_strategy="epoch",
         
 
-        gradient_accumulation_steps=config["training"].get("gradient_accumulation_steps", 1),
+        gradient_accumulation_steps=training_config.gradient_accumulation_steps,
 
         # Common stability/perf options (optional but helpful)
-        optim=config["training"].get("optim", "adamw_torch"),
-        max_grad_norm=config["training"].get("max_grad_norm", 1.0),
-        warmup_ratio=config["training"].get("warmup_ratio", 0.0),
+        optim=training_config.optim,
+        max_grad_norm=training_config.max_grad_norm,
+        warmup_ratio=training_config.warmup_ratio,
 
         # If you later go multi-GPU with torchrun/DDP
         ddp_find_unused_parameters=False,
+
+        max_length=2048,
+        dataset_text_field="text",
+        
+        packing=False
     )
 
     trainer = SFTTrainer(
         model=model,
+        processing_class=tokenizer,
         args=training_args,
         peft_config=lora_cfg, 
         train_dataset=processed_data["train"],
         eval_dataset=processed_data["test"],
-        max_seq_length=2048,
-        dataset_text_field="text",
-        tokenizer=tokenizer,
-        packing=True
         # compute_metrics=metrics_computer,
     )
 
