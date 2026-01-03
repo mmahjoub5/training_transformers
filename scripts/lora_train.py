@@ -118,10 +118,6 @@ def main():
         remove_columns=raw_ds["train"].column_names,
     )
 
-    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    print(processed_data["test"][0])
-    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
 
 
     if lora_config is not None:

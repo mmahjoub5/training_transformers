@@ -1,7 +1,7 @@
 model:
   name: microsoft/Phi-3.5-mini-instruct
   kind: clm
-  attn_implementation: flash_attention_2
+  attn_implementation: sdpa
 
 data:
   name: json

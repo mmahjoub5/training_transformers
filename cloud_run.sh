@@ -69,4 +69,4 @@ conda activate "$ENV_NAME"
 ###############################################
 # RUN Script
 ###############################################
-python -m scripts.train_clm_qa_lora --config configs/phi2qa_lora.yaml --proc 4
+python -m scripts.lora_train --config configs/phi35qa_lora_socratic.yaml --proc 10
