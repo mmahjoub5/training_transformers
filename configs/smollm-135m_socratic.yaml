@@ -4,7 +4,7 @@ model:
 
 data:
   name: json
-  data_file: /Users/aminmahjoub/training_transformers/data/custom_dataset/policy_shift.jsonl
+  data_file: data/custom_dataset/final_data.json
   split: null
   config_name: null
   train_split: train
@@ -25,16 +25,17 @@ training:
   epochs: 10
   output_dir: output/1229/smollm-135m/
   weight_decay: 0.01
-  eval_steps: 50
+  eval_steps: 2
   gradient_accumulation_steps: 4
-
+  eval_strategy: steps
 
 logging:
   report_to: tensorboard
   logging_dir: "./smollm1229/runs"
   log_every: 10
-  save_every: 500
+  save_every: 2
   level: info
+  save_strategy: steps
 
 # lora:
 #   rank: 16

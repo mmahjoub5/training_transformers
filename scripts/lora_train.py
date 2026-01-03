@@ -9,13 +9,13 @@ from src.config.training_config import TrainingConfig
 from src.config.lora_config import LoraConfigSpec
 from src.config.logging_config import LoggingConfig
 from transformers import TrainingArguments, Trainer
-from src.metrics.compute_metrics import QAMetricsComputer
+from src.metrics.compute_metrics import BehaviorMetricsComputer
 from src.data.eli_preprocess import ELI5Preprocessor_QA
 from src.data.data_utils import PREPROCESSOR_REGISTRY
 import argparse
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from trl import SFTTrainer, SFTConfig
-
+from metrics_eval.callback import MetricsEvalCallback
 # arg parse for input config 
 
 parser = argparse.ArgumentParser(
@@ -164,9 +164,9 @@ def main():
         bf16=use_bf16,
         tf32=use_fp16, 
         # Evaluation / saving strategies
-        eval_strategy="epoch",
-        
-
+        eval_strategy=training_config.eval_strategy,
+        do_eval=True,
+        eval_steps=training_config.eval_steps, 
         gradient_accumulation_steps=training_config.gradient_accumulation_steps,
 
         # Common stability/perf options (optional but helpful)
@@ -182,7 +182,13 @@ def main():
         
         packing=False
     )
-
+    
+    metrics_callback = MetricsEvalCallback(
+        eval_data=processed_data["test"],
+        eval_steps=training_args.eval_steps,
+        max_samples=200,
+        batch_size=4,
+    )
     trainer = SFTTrainer(
         model=model,
         processing_class=tokenizer,
@@ -190,9 +196,10 @@ def main():
         peft_config=lora_cfg, 
         train_dataset=processed_data["train"],
         eval_dataset=processed_data["test"],
-        # compute_metrics=metrics_computer,
+    
     )
-
+    trainer.add_callback(metrics_callback)
+    
     train_result = trainer.train()
     metrics = train_result.metrics
     trainer.log_metrics("train", metrics)

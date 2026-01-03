@@ -1,4 +1,5 @@
 import json
+import math
 import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -155,6 +156,63 @@ def generate_outputs(
     return outputs
 
 
+def compute_eval_loss(
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerBase,
+    examples: Sequence[Dict[str, Any]],
+    batch_size: int,
+) -> float:
+    device = model.device
+    model.eval()
+
+    prompt_targets = []
+    for ex in examples:
+        split = split_prompt_target(ex)
+        if split is None:
+            continue
+        messages, target = split
+        prompt = build_prompt(tokenizer, messages)
+        if not target:
+            continue
+        prompt_targets.append((prompt, target))
+
+    if not prompt_targets:
+        return float("nan")
+
+    total_loss = 0.0
+    total_tokens = 0
+
+    with torch.no_grad():
+        for batch in _batch_iter(prompt_targets, batch_size):
+            prompts = [p for p, _t in batch]
+            full_texts = [p + t for p, t in batch]
+            enc = tokenizer(
+                full_texts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                add_special_tokens=False,
+            )
+            enc = {k: v.to(device) for k, v in enc.items()}
+            labels = enc["input_ids"].clone()
+            labels.fill_(-100)
+            prompt_lens = [
+                len(tokenizer(p, add_special_tokens=False)["input_ids"]) for p in prompts
+            ]
+            for i, prompt_len in enumerate(prompt_lens):
+                labels[i, prompt_len:] = enc["input_ids"][i, prompt_len:]
+            labels[enc["attention_mask"] == 0] = -100
+
+            loss = model(**enc, labels=labels).loss
+            token_count = int((labels != -100).sum().item())
+            total_loss += loss.item() * token_count
+            total_tokens += token_count
+
+    if total_tokens == 0:
+        return float("nan")
+    return total_loss / total_tokens
+
+
 def compute_metrics(
     outputs: Sequence[str],
     tokenizer: Optional[PreTrainedTokenizerBase] = None,
@@ -209,6 +267,19 @@ def evaluate(
     )
 
     metrics = compute_metrics(outputs, tokenizer=tokenizer)
+    eval_loss = compute_eval_loss(
+        model=model,
+        tokenizer=tokenizer,
+        examples=eval_examples,
+        batch_size=cfg.batch_size,
+    )
+    metrics["eval_loss"] = eval_loss
+
+    if math.isnan(eval_loss):
+        metrics["perplexity"] = float("nan")
+    else:
+        safe_loss = min(eval_loss, 20.0)
+        metrics["perplexity"] = math.exp(safe_loss)
     return metrics
 
 

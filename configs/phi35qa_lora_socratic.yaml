@@ -11,7 +11,7 @@ data:
   train_split: train
   val_split: validation
   test_split: null
-  max_train_samples: 100
+  max_train_samples: null
   max_val_samples: null #val is 0.2 of max train
   shuffle_train: true
   seed: 42

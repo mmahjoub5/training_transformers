@@ -9,6 +9,7 @@ class TrainingConfig:
     lr: float
     epochs: int
     output_dir: str
+    eval_strategy: str
     precision: str = "fp32"
     eval_steps: int = 0
     gradient_accumulation_steps: int = 1
@@ -38,4 +39,5 @@ class TrainingConfig:
             optim=training_cfg.get("optim", "adamw_torch"),
             max_grad_norm=training_cfg.get("max_grad_norm", 1.0),
             warmup_ratio=training_cfg.get("warmup_ratio", 0.0),
+            eval_strategy=training_cfg.get("eval_strategy", "epoch")
         )

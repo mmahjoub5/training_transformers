@@ -1,7 +1,11 @@
 
 import numpy as np
 from sklearn.metrics import accuracy_score
+from typing import Optional
+
+from metrics_eval.evaluator import compute_metrics as compute_behavior_metrics
 from src.metrics.metric_utils import get_best_valid_answer, compute_token_f1
+
 
 
 
@@ -80,3 +84,36 @@ class QAMetricsComputer:
             "valid_span_ratio": float(valid_spans),
             "f1": float(f1),
         }
+
+
+class BehaviorMetricsComputer:
+    def __init__(self, tokenizer, max_samples: Optional[int] = None):
+        self.tokenizer = tokenizer
+        self.max_samples = max_samples
+
+    def __call__(self, eval_pred):
+        print("we are here")
+        logits, labels = eval_pred
+        if isinstance(logits, (tuple, list)):
+            logits = logits[0]
+
+        if self.max_samples is not None:
+            logits = logits[: self.max_samples]
+            labels = labels[: self.max_samples]
+
+        # Align like CausalLM loss does: logits[:-1] predicts labels[1:]
+        pred_ids = np.argmax(logits, axis=-1)          # (B, T)
+        pred_ids = pred_ids[:, :-1]                    # (B, T-1)
+        labels_shift = labels[:, 1:]                   # (B, T-1)
+
+        outputs = []
+        for pred_row, label_row in zip(pred_ids, labels_shift):
+            mask = label_row != -100
+            if not np.any(mask):
+                continue
+
+            # Decode only the predicted tokens where we had label supervision
+            text = self.tokenizer.decode(pred_row[mask], skip_special_tokens=True)
+            outputs.append(text.strip())
+
+        return compute_behavior_metrics(outputs, tokenizer=self.tokenizer)

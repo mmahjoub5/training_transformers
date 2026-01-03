@@ -29,3 +29,25 @@ FORCE_UPDATE=true ./cloud_run.sh
 - **Force update**: Set `FORCE_UPDATE=true` to update dependencies when needed
 
 This optimization saves significant time by avoiding unnecessary environment updates on every run.
+
+## Evaluation Metrics
+
+Behavior-focused evaluation (Socratic style, no final answers, avoid numeric rules-of-thumb) lives in `metrics_eval/`.
+
+Run standalone metrics:
+```bash
+python scripts/eval_metrics.py --model_path microsoft/Phi-3.5-mini-instruct --eval_json /path/to/eval_data.json --batch_size 4
+```
+
+Plug into training with a callback:
+```python
+from metrics_eval.callback import MetricsEvalCallback
+
+metrics_callback = MetricsEvalCallback(
+    eval_json="/path/to/eval_data.json",
+    eval_steps=200,
+    max_samples=200,
+    batch_size=4,
+)
+trainer.add_callback(metrics_callback)
+```

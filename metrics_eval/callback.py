@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 
@@ -9,7 +9,8 @@ from metrics_eval.evaluator import EvalConfig, GenerationConfig, _load_json_or_j
 class MetricsEvalCallback(TrainerCallback):
     def __init__(
         self,
-        eval_json: str,
+        eval_json: Optional[str] = None,
+        eval_data: Optional[Sequence[Dict[str, Any]]] = None,
         eval_steps: int = 500,
         max_samples: int = 200,
         batch_size: int = 4,
@@ -17,6 +18,7 @@ class MetricsEvalCallback(TrainerCallback):
         generation: Optional[GenerationConfig] = None,
     ) -> None:
         self.eval_json = eval_json
+        self.eval_data = eval_data
         self.eval_steps = eval_steps
         self.max_samples = max_samples
         self.batch_size = batch_size
@@ -27,7 +29,12 @@ class MetricsEvalCallback(TrainerCallback):
 
     def _get_eval_subset(self) -> List[Dict[str, Any]]:
         if self._eval_cache is None:
-            self._eval_cache = _load_json_or_jsonl(self.eval_json)
+            if self.eval_data is not None:
+                self._eval_cache = list(self.eval_data)
+            elif self.eval_json is not None:
+                self._eval_cache = _load_json_or_jsonl(self.eval_json)
+            else:
+                self._eval_cache = []
         if self._eval_subset is None:
             if self.max_samples is None or len(self._eval_cache) <= self.max_samples:
                 self._eval_subset = list(self._eval_cache)
@@ -43,6 +50,7 @@ class MetricsEvalCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Any,
     ) -> TrainerControl:
+        print("we are here")
         if state.global_step == 0 or state.global_step % self.eval_steps != 0:
             return control
         trainer = kwargs.get("trainer")
@@ -62,6 +70,7 @@ class MetricsEvalCallback(TrainerCallback):
         )
         metrics = evaluate(model=model, tokenizer=tokenizer, eval_data=eval_subset, cfg=cfg)
         trainer.log(metrics)
+        print(metrics)
         return control
 
 
