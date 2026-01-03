@@ -9,49 +9,10 @@ import torch
 
 from src.models.model_loader import load_model
 from src.io.prompt_io import read_prompts
+from src.config.generation_config import GenerationConfig
+from src.config.model_config import ModelConfig
 
 
-class ModelConfig:
-    """Configuration for model loading."""
-    def __init__(
-        self,
-        model_name: str,
-        precision: str = "fp16",
-        low_cpu_mem_usage: bool = True,
-        device_map: Optional[str] = None,
-        kind: str = "clm",
-        attn_implementation: str = "sdpa"
-    ):
-        self.model_name = model_name
-        self.precision = precision
-        self.low_cpu_mem_usage = low_cpu_mem_usage
-        self.device_map = device_map
-        self.kind = kind
-        self.attn_implementation = attn_implementation
-
-
-class GenerationConfig:
-    """Configuration for text generation."""
-    def __init__(
-        self,
-        max_new_tokens: int = 200,
-        do_sample: bool = True,
-        temperature: float = 0.7,
-        top_p: float = 0.9
-    ):
-        self.max_new_tokens = max_new_tokens
-        self.do_sample = do_sample
-        self.temperature = temperature
-        self.top_p = top_p
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert config to dict for model.generate()."""
-        return {
-            "max_new_tokens": self.max_new_tokens,
-            "do_sample": self.do_sample,
-            "temperature": self.temperature,
-            "top_p": self.top_p,
-        }
 
 
 def setup_model(tokenizer, model):
@@ -74,6 +35,9 @@ def load_and_setup_model(config: ModelConfig):
     model = setup_model(tokenizer, model)
     model.eval()
     return tokenizer, model
+
+
+
 
 
 def generate_text(

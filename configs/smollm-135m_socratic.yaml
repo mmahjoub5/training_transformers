@@ -3,7 +3,8 @@ model:
   kind: clm
 
 data:
-  name: dany0407/eli5_category
+  name: json
+  data_file: /Users/aminmahjoub/training_transformers/data/custom_dataset/policy_shift.jsonl
   split: null
   config_name: null
   train_split: train
@@ -13,7 +14,8 @@ data:
   max_val_samples: null #val is 0.2 of max train
   shuffle_train: true
   seed: 42
-  preprocessor: ELI5Preprocessor_QA
+  preprocessor: SocraticPreprocessor
+
 tokenizer:
   max_length: 256
 

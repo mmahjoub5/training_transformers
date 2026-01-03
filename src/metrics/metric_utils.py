@@ -1,3 +1,6 @@
+import numpy as np
+from sklearn.metrics import accuracy_score
+
 def get_best_valid_answer(start_logits, end_logits, offset_mapping, 
                           n_best_size=20, max_answer_length=30):
     """Find best valid answer span using n_best approach."""
@@ -69,3 +72,5 @@ def compute_token_f1(pred_start, pred_end, true_start, true_end):
     # Calculate F1
     f1 = 2 * precision * recall / (precision + recall)
     return f1
+
+

@@ -43,7 +43,7 @@ def load_model(
     }[precision]
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
-
+    
     if kind == "qa":
         model = AutoModelForQuestionAnswering.from_pretrained(
             model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code

@@ -1,0 +1,50 @@
+model:
+  name: microsoft/Phi-3.5-mini-instruct
+  kind: clm
+  attn_implementation: flash_attention_2
+
+data:
+  name: json
+  data_file: /Users/aminmahjoub/training_transformers/data/custom_dataset/policy_shift.jsonl
+  split: null
+  config_name: null
+  train_split: train
+  val_split: validation
+  test_split: null
+  max_train_samples: 100
+  max_val_samples: null #val is 0.2 of max train
+  shuffle_train: true
+  seed: 42
+  preprocessor: SocraticPreprocessor
+
+tokenizer:
+  max_length: 2048
+
+training:
+  batch_size: 4
+  lr: 3e-5
+  epochs: 10
+  output_dir: output/1-2/socratic/phi2/
+  eval_steps: 50
+  gradient_accumulation_steps: 8
+  gradient_checkpointing: true
+  precision: bf16
+  max_steps: 12000
+
+
+
+logging:
+  report_to: tensorboard
+  logging_dir: "./phi2/1-2/socratic/runs"
+  logging_steps: 100
+  save_steps: 500
+  level: info
+  save_strategy: steps
+
+lora:
+  rank: 16
+  lora_alpha: 12
+  lora_droput: 0.05
+  bias: none
+  task_type: CAUSAL_LM
+

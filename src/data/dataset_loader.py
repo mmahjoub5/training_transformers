@@ -18,11 +18,19 @@ def load_dataset_generic(cfg: dict) -> DatasetDict:
         - "validation"
         - "test" (if requested)
     """
-    ds: DatasetDict = load_dataset(
-        cfg["name"],
-        cfg["config_name"],
-        split_name=cfg.get("split", None)
-    )
+    if "data_file" in cfg.keys():
+        ds: DatasetDict = load_dataset(
+            cfg["name"],
+            cfg["config_name"],
+            data_files=cfg["data_file"]
+        )
+    else:
+        ds: DatasetDict = load_dataset(
+            cfg["name"],
+            cfg["config_name"],
+            split_name=cfg.get("split", None),
+        )
+
 
     out: Dict[str, Dataset] = {}
 

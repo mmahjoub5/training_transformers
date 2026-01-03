@@ -7,8 +7,11 @@ from src.data.preprocess import preprocess_dataset
 from transformers import TrainingArguments, Trainer
 from src.metrics.compute_metrics import QAMetricsComputer
 from src.data.eli_preprocess import ELI5Preprocessor_QA
+from src.data.data_utils import PREPROCESSOR_REGISTRY
 import argparse
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from trl import SFTTrainer
+
 # arg parse for input config 
 
 parser = argparse.ArgumentParser(
@@ -38,7 +41,7 @@ def _cuda_bf16_supported() -> bool:
     return torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8
 
 
-if __name__ == "__main__":
+def main():
     config = load_config(args.config)
 
     # --- Device / precision setup ---
@@ -65,10 +68,15 @@ if __name__ == "__main__":
         model_name=config["model"]["name"],
         kind=config["model"]["kind"],
         precision=precision,  # keep your existing contract,
-        attn_implementation="sdpa",
+        attn_implementation=config["model"].get("attn_implementation", "sdpa"),
         
     )
-    import torch
+    tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
+    tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+    tokenizer.padding_side = 'right'
+
+
+
     print("++++++++++++++++++++++++++++++++++++++++++++++")
     print(torch.backends.cuda.sdp_kernel)
     print("++++++++++++++++++++++++++++++++++++++++++++++")
@@ -81,40 +89,43 @@ if __name__ == "__main__":
         if hasattr(model.config, "use_cache"):
             model.config.use_cache = False
 
-    # If your load_model DOES NOT move to GPU, Trainer will do it.
-    # But moving explicitly is fine too:
-    # model.to(device)
-
-    preprocessor = ELI5Preprocessor_QA(tokenizer, 
-                                       max_length=config["tokenizer"]["max_length"],
-                                       truncation=True)
+    # Initialize Preprocessor
+    cls = PREPROCESSOR_REGISTRY[config["data"]["preprocessor"]]
+    preprocessor = cls(tokenizer, 
+                        max_length=config["tokenizer"]["max_length"],
+                        truncation=True
+                    )
     
     raw_ds = load_dataset_generic(config["data"])
     raw_ds = raw_ds["train"].train_test_split(test_size=0.2)
-    raw_ds = raw_ds.flatten()
     print("Raw dataset splits:", raw_ds)
-    print("Raw dataset example:", raw_ds["train"][3])
-    print(raw_ds["train"].column_names)
+    print("Raw dataset example:", raw_ds["train"][0])
+    
 
-    tokenized_eli5 = raw_ds.map(
+    processed_data = raw_ds.map(
         preprocessor,
         batched=False,
         num_proc=args.proc,
         remove_columns=raw_ds["train"].column_names,
     )
-    print(tokenized_eli5.shape)
+
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+    print(processed_data["test"][0])
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+
 
     if config.get("lora", None) is not None:
         lora_cfg = LoraConfig(
             r= config["lora"].get("rank", 16),
             lora_alpha=config["lora"].get("lora_alpha", 12),
-            lora_dropout=config["lora"].get("lora_droput", 0.05),
+            lora_dropout=config["lora"].get("lora_dropout", 0.05),
             bias=config["lora"].get("bias", "bias"),
             task_type=config["lora"].get("task_type", "CAUSAL_LM"),
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],  # common for decoder LMs
         )
-        model = get_peft_model(model, lora_cfg)
-        model.print_trainable_parameters()
+    else :
+        lora_cfg = None
 
 
     training_args = TrainingArguments(
@@ -158,13 +169,24 @@ if __name__ == "__main__":
         ddp_find_unused_parameters=False,
     )
 
-    trainer = Trainer(
+    trainer = SFTTrainer(
         model=model,
         args=training_args,
-        train_dataset=tokenized_eli5["train"],
-        eval_dataset=tokenized_eli5["test"],
+        peft_config=lora_cfg, 
+        train_dataset=processed_data["train"],
+        eval_dataset=processed_data["test"],
+        max_seq_length=2048,
+        dataset_text_field="text",
         tokenizer=tokenizer,
+        packing=True
         # compute_metrics=metrics_computer,
     )
 
-    trainer.train()
+    train_result = trainer.train()
+    metrics = train_result.metrics
+    trainer.log_metrics("train", metrics)
+    trainer.save_metrics("train", metrics)
+    trainer.save_state()
+
+if __name__ == "__main__":
+    main()
