@@ -5,7 +5,7 @@ model:
 
 data:
   name: json
-  data_file: training_transformers/data/custom_dataset/final_data.json
+  data_file: data/custom_dataset/final_data.json
   split: null
   config_name: null
   train_split: train
@@ -30,6 +30,7 @@ training:
   gradient_checkpointing: true
   precision: bf16
   max_steps: 12000
+  eval_strategy: steps
 
 
 
