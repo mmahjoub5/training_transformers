@@ -11,6 +11,8 @@ else
 
   if [[ "$OS" == "Linux" && "$ARCH" == "x86_64" ]]; then
     INSTALLER="Miniconda3-latest-Linux-x86_64.sh"
+  elif [[ "$OS" == "Linux" && "$ARCH" == "aarch64" ]]; then
+    INSTALLER="Miniconda3-latest-Linux-aarch64.sh"
   elif [[ "$OS" == "Darwin" && "$ARCH" == "arm64" ]]; then
     INSTALLER="Miniconda3-latest-MacOSX-arm64.sh"
   elif [[ "$OS" == "Darwin" && "$ARCH" == "x86_64" ]]; then

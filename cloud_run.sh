@@ -11,6 +11,8 @@ else
 
   if [[ "$OS" == "Linux" && "$ARCH" == "x86_64" ]]; then
     INSTALLER="Miniconda3-latest-Linux-x86_64.sh"
+  elif [[ "$OS" == "Linux" && "$ARCH" == "aarch64" ]]; then
+    INSTALLER="Miniconda3-latest-Linux-aarch64.sh"
   elif [[ "$OS" == "Darwin" && "$ARCH" == "arm64" ]]; then
     INSTALLER="Miniconda3-latest-MacOSX-arm64.sh"
   elif [[ "$OS" == "Darwin" && "$ARCH" == "x86_64" ]]; then
@@ -54,13 +56,13 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
   if [ "$FORCE_UPDATE" = "true" ]; then
     echo "🔄 Updating conda env '$ENV_NAME' from environment.yml (FORCE_UPDATE=true)"
-    conda env update -n "$ENV_NAME" -f ./environment.yml --prune -y
+    conda env update -n "$ENV_NAME" -f ./environment.yml --prune
   else
     echo "✅ Conda env '$ENV_NAME' already exists — skipping update (set FORCE_UPDATE=true to update)"
   fi
 else
   echo "🚀 Creating conda env '$ENV_NAME' from environment.yml"
-  conda env create -n "$ENV_NAME" -f ./environment.yml -y
+  conda env create -n "$ENV_NAME" -f ./environment.yml
 fi
 
 # Activate env
