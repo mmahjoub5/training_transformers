@@ -11,7 +11,7 @@ data:
   train_split: train
   val_split: validation
   test_split: null
-  max_train_samples: 20
+  max_train_samples: null
   max_val_samples: null #val is 0.2 of max train
   shuffle_train: true
   seed: 42
@@ -22,10 +22,11 @@ tokenizer:
 
 training:
   batch_size: 4
-  lr: 3e-5
+  lr: 5.0e-06
+  lr_scheduler_type: cosine
   epochs: 10
   output_dir: output/1-2/socratic/phi2/
-  eval_steps: 50
+  eval_steps: 150
   gradient_accumulation_steps: 8
   gradient_checkpointing: true
   precision: bf16
@@ -37,8 +38,8 @@ training:
 logging:
   report_to: tensorboard
   logging_dir: "./phi2/1-2/socratic/runs"
-  logging_steps: 100
-  save_steps: 500
+  logging_steps: 10
+  save_steps: 250
   level: info
   save_strategy: steps
 
