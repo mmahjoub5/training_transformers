@@ -65,6 +65,18 @@ def _map_role(role: str) -> str:
 
 
 def split_prompt_target(example: Dict[str, Any]) -> Optional[Tuple[List[Dict[str, str]], str]]:
+    messages_field = example.get("messages")
+    if isinstance(messages_field, list) and messages_field:
+        last_user_idx = None
+        for i in range(len(messages_field) - 1):
+            if messages_field[i].get("role") == "user" and messages_field[i + 1].get("role") == "assistant":
+                last_user_idx = i
+        if last_user_idx is None:
+            return None
+        prompt_messages = messages_field[: last_user_idx + 1]
+        target_message = messages_field[last_user_idx + 1]
+        return prompt_messages, target_message.get("content", "")
+
     turns = example.get("turns", [])
     if not turns:
         return None

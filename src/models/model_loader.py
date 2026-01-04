@@ -43,7 +43,24 @@ def load_model(
     }[precision]
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
-    
+
+    tokenizer.chat_template = r"""
+    {% for message in messages %}
+    {% if message['role'] == 'system' %}
+    <|system|>
+    {{ message['content'] }}{{ eos_token }}
+    {% elif message['role'] == 'user' %}
+    <|user|>
+    {{ message['content'] }}{{ eos_token }}
+    {% elif message['role'] == 'assistant' %}
+    <|assistant|>
+    {% generation %}
+    {{ message['content'] }}{{ eos_token }}
+    {% endgeneration %}
+    {% endif %}
+    {% endfor %}
+    """.strip()
+
     if kind == "qa":
         model = AutoModelForQuestionAnswering.from_pretrained(
             model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code

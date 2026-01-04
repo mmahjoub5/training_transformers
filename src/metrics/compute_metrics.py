@@ -92,7 +92,7 @@ class BehaviorMetricsComputer:
         self.max_samples = max_samples
 
     def __call__(self, eval_pred):
-        print("we are here")
+        #print("we are here")
         logits, labels = eval_pred
         if isinstance(logits, (tuple, list)):
             logits = logits[0]

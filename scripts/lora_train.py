@@ -77,7 +77,7 @@ def main():
         kind=model_config.kind,
         precision=precision,
         attn_implementation=model_config.attn_implementation,
-        device_map = "auto"
+        #device_map = "none"
     )
     tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
@@ -173,10 +173,10 @@ def main():
         # If you later go multi-GPU with torchrun/DDP
         ddp_find_unused_parameters=False,
 
-        max_length=2048,
-        dataset_text_field="text",
-        
-        packing=False
+        max_length=4096,
+        dataset_text_field="messages",
+        packing=True,
+        assistant_only_loss=True
     )
     
     metrics_callback = MetricsEvalCallback(
@@ -192,9 +192,35 @@ def main():
         peft_config=lora_cfg, 
         train_dataset=processed_data["train"],
         eval_dataset=processed_data["test"],
+        
     
     )
     trainer.add_callback(metrics_callback)
+    
+    dl = trainer.get_train_dataloader()
+    batch = next(iter(dl))
+
+    # batch should have input_ids + labels
+    print(batch.keys())
+
+    input_ids = batch["input_ids"][0].tolist()
+    labels = batch["labels"][0].tolist()
+
+    # decode full input
+    print("\nFULL INPUT:\n", tokenizer.decode(input_ids, skip_special_tokens=False)[:2000])
+
+    # decode only tokens that are NOT masked out (-100)
+    target_ids = [tid for tid, lab in zip(input_ids, labels) if lab != -100]
+    print("\nTARGET (LOSS) TOKENS ONLY:\n", tokenizer.decode(target_ids, skip_special_tokens=False)[:2000])
+
+    total_tokens = len(input_ids)
+    target_tokens = sum(l != -100 for l in labels)
+    assert target_tokens > 0
+    assert target_tokens < total_tokens
+    # sanity counts
+    print("\ncounts:",
+        "total_tokens=", len(input_ids),
+        "target_tokens=", sum(l != -100 for l in labels))
     
     train_result = trainer.train()
     metrics = train_result.metrics

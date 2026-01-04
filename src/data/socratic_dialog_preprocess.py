@@ -13,7 +13,7 @@ class SocraticPreprocessor:
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer_kwargs = tokenizer_kwargs
-        self.message = [] 
+        self.messages = []
 
     def _fallback_chat_format(self, messages):
         # Simple, consistent format when tokenizer lacks a chat template.
@@ -42,7 +42,6 @@ class SocraticPreprocessor:
         return system_prompt
     def __call__(self, examples):
         self.messages = []
-        print(examples.keys())
         self.messages.append({
             "role": "system",
             "content": self.policy_system_prompt_generator(examples["policy"])
@@ -56,22 +55,19 @@ class SocraticPreprocessor:
             elif turn["role"] == "senior_engineer":
                 self.messages.append({
                     "role": "assistant",
-                    "content": f"[HINT_LEVEL={turn['hint_level']}]\n{turn['content']}"
+                    "content": turn['content']
                 })
 
-        if getattr(self.tokenizer, "chat_template", None):
-            print(self.messages)
-            text = self.tokenizer.apply_chat_template(
-                self.messages,
-                tokenize=False,
-                add_generation_prompt=False,
-            )
+        # if getattr(self.tokenizer, "chat_template", None):
+        #     print(self.messages)
+        #     text = self.tokenizer.apply_chat_template(
+        #         self.messages,
+        #         tokenize=False,
+        #         add_generation_prompt=False,
+        #     )
            
-        else:
-            print("we are here ")
-            text = self._fallback_chat_format(self.messages)
+        # else:
+        #     #print("we are here ")
+        #     text = self._fallback_chat_format(self.messages)
 
-        out = {
-            "text": text
-        }
-        return out
+        return {"messages": self.messages}

@@ -50,7 +50,7 @@ class MetricsEvalCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Any,
     ) -> TrainerControl:
-        print("we are here")
+        #print("we are here")
         if state.global_step == 0 or state.global_step % self.eval_steps != 0:
             return control
         trainer = kwargs.get("trainer")
