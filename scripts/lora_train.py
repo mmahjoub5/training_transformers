@@ -136,6 +136,10 @@ def main():
         attn_implementation=model_config.attn_implementation,
         device_map = "auto"
     )
+    print("++++++++++++++++++++++++++++++++++++++++++")
+    print(tokenizer.model_max_length)
+    print(model.config.max_position_embeddings)
+    print("++++++++++++++++++++++++++++++++++++++++++++")
     # Set pad token: prefer existing pad; else use eos; else add new
     if tokenizer.pad_token is None:
         if tokenizer.eos_token is not None:
