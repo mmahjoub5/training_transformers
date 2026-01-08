@@ -1,4 +1,8 @@
 import torch
+import sys
+import os
+import logging
+from pathlib import Path
 
 from src.models.model_loader import load_model, quick_info
 from src.core.config import load_config
@@ -16,6 +20,13 @@ import argparse
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from trl import SFTTrainer, SFTConfig
 from metrics_eval.callback import MetricsEvalCallback
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 # arg parse for input config 
 
 parser = argparse.ArgumentParser(
@@ -34,15 +45,61 @@ parser.add_argument(
     type=int,
     required=False,
     default=1,
-    help="Path to YAML config file (e.g. configs/smollm-135m.yaml)",
+    help="Number of processes for data preprocessing",
 )
 
+parser.add_argument(
+    "--resume",
+    action="store_true",
+    help="Resume training from latest checkpoint in output_dir",
+)
 
 args = parser.parse_args()
+logger = logging.getLogger(__name__)
 
 def _cuda_bf16_supported() -> bool:
     # bf16 is typically supported on Ampere (A100/3090) and newer
     return torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8
+
+
+def find_latest_checkpoint(output_dir: str) -> str | None:
+    """Find the latest checkpoint in output_dir, if any."""
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        return None
+
+    checkpoints = list(output_path.glob("checkpoint-*"))
+    if not checkpoints:
+        return None
+
+    # Sort by step number and return latest
+    checkpoints.sort(key=lambda x: int(x.name.split("-")[1]))
+    latest = str(checkpoints[-1])
+    logger.info(f"Found checkpoint: {latest}")
+    return latest
+
+
+def validate_batch(input_ids, labels, tokenizer):
+    """Validate a batch and return stats. Raises ValueError if invalid."""
+    total_tokens = len(input_ids)
+    target_tokens = sum(1 for lab in labels if lab != -100)
+
+    if total_tokens == 0:
+        raise ValueError("Batch has 0 tokens - check your data preprocessing")
+
+    if target_tokens == 0:
+        raise ValueError(
+            "No target tokens found (all labels are -100). "
+            "Check that assistant_only_loss is working correctly and your data has assistant responses."
+        )
+
+    if target_tokens >= total_tokens:
+        raise ValueError(
+            f"All tokens are target tokens ({target_tokens}/{total_tokens}). "
+            "This suggests labels are not being masked properly."
+        )
+
+    return total_tokens, target_tokens
 
 
 def main():
@@ -55,9 +112,9 @@ def main():
     # --- Device / precision setup ---
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-    print(f"Device: {device}")
+    logger.info(f"Device: {device}")
     if use_cuda:
-        print("GPU:", torch.cuda.get_device_name(0))
+        logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
 
     # precision from config: "fp32" | "fp16" | "bf16"
     precision = training_config.precision.lower()
@@ -67,7 +124,7 @@ def main():
     use_fp16 = (precision == "fp16") and use_cuda and not use_bf16
 
     if precision == "bf16" and not use_bf16:
-        print("Warning: bf16 requested but not supported on this GPU. Falling back to fp16.")
+        logger.warning("bf16 requested but not supported on this GPU. Falling back to fp16.")
         use_fp16 = use_cuda
         use_bf16 = False
 
@@ -79,15 +136,24 @@ def main():
         attn_implementation=model_config.attn_implementation,
         device_map = "auto"
     )
-    tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
+    # Set pad token with fallback chain: unk -> eos -> add new
+    if tokenizer.unk_token is not None:
+        tokenizer.pad_token = tokenizer.unk_token
+    elif tokenizer.eos_token is not None:
+        tokenizer.pad_token = tokenizer.eos_token
+        logger.warning("Using eos_token as pad_token (unk_token not available)")
+    else:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
+        logger.warning("Added new [PAD] token and resized embeddings")
+
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
     tokenizer.padding_side = 'right'
+    logger.info(f"Pad token: '{tokenizer.pad_token}' (id={tokenizer.pad_token_id})")
 
 
 
-    print("++++++++++++++++++++++++++++++++++++++++++++++")
-    print(torch.backends.cuda.sdp_kernel)
-    print("++++++++++++++++++++++++++++++++++++++++++++++")
+    logger.info(f"SDP Kernel: {torch.backends.cuda.sdp_kernel}")
     model.config.use_cache = False
 
     # Optional: gradient checkpointing to reduce VRAM (slower but useful)
@@ -105,9 +171,9 @@ def main():
                     )
     
     raw_ds = load_dataset_generic(config["data"])
-    raw_ds = raw_ds["train"].train_test_split(test_size=0.2)
-    print("Raw dataset splits:", raw_ds)
-    print("Raw dataset example:", raw_ds["train"][0])
+    raw_ds = raw_ds["train"].train_test_split(test_size=0.2, seed=config["data"].get("seed", 42))
+    logger.info(f"Raw dataset splits: {raw_ds}")
+    logger.info(f"Raw dataset example: {raw_ds['train'][0]}")
     
     if config["data"]["preprocessor"] == "ELI5Preprocessor_QA":
         raw_ds = raw_ds.flatten()
@@ -129,12 +195,12 @@ def main():
             task_type=lora_config.task_type,
             target_modules=lora_config.target_modules,  # common for decoder LMs
         )
-    else :
+    else:
         lora_cfg = None
-    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    print(training_config)
-    print(str(training_config.eval_strategy))
-    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+    logger.info(f"Training config: {training_config}")
+    logger.info(f"Eval strategy: {training_config.eval_strategy}")
+
     training_args = SFTConfig(
         output_dir=training_config.output_dir,
         per_device_train_batch_size=training_config.batch_size,
@@ -202,38 +268,64 @@ def main():
         callbacks=callbacks if callbacks else None,
     )
 
-    
+    # Validate a batch before training
+    logger.info("Validating batch structure...")
     dl = trainer.get_train_dataloader()
     batch = next(iter(dl))
 
-    # batch should have input_ids + labels
-    print(batch.keys())
+    logger.info(f"Batch keys: {batch.keys()}")
 
     input_ids = batch["input_ids"][0].tolist()
     labels = batch["labels"][0].tolist()
 
-    # decode full input
-    print("\nFULL INPUT:\n", tokenizer.decode(input_ids, skip_special_tokens=False)[:2000])
+    # Validate batch - will raise ValueError with helpful message if invalid
+    total_tokens, target_tokens = validate_batch(input_ids, labels, tokenizer)
 
-    # decode only tokens that are NOT masked out (-100)
+    # Log sample for debugging
+    logger.info(f"FULL INPUT (first 2000 chars):\n{tokenizer.decode(input_ids, skip_special_tokens=False)[:2000]}")
+
     target_ids = [tid for tid, lab in zip(input_ids, labels) if lab != -100]
-    print("\nTARGET (LOSS) TOKENS ONLY:\n", tokenizer.decode(target_ids, skip_special_tokens=False)[:2000])
+    logger.info(f"TARGET TOKENS (first 2000 chars):\n{tokenizer.decode(target_ids, skip_special_tokens=False)[:2000]}")
 
-    total_tokens = len(input_ids)
-    target_tokens = sum(l != -100 for l in labels)
-    assert target_tokens > 0
-    assert target_tokens < total_tokens
-    # sanity counts
-    print("\ncounts:",
-        "total_tokens=", len(input_ids),
-        "target_tokens=", sum(l != -100 for l in labels))
-    
-    train_result = trainer.train()
-    metrics = train_result.metrics
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    trainer.save_state()
-    trainer.save_model()
+    logger.info(f"Token counts: total={total_tokens}, target={target_tokens}, masked={total_tokens - target_tokens}")
+
+    # Check for resume
+    resume_checkpoint = None
+    if args.resume:
+        resume_checkpoint = find_latest_checkpoint(training_config.output_dir)
+        if resume_checkpoint:
+            logger.info(f"Resuming from checkpoint: {resume_checkpoint}")
+        else:
+            logger.warning("--resume flag set but no checkpoint found. Starting from scratch.")
+
+    # Training with error handling
+    try:
+        logger.info("Starting training...")
+        train_result = trainer.train(resume_from_checkpoint=resume_checkpoint)
+        metrics = train_result.metrics
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
+        trainer.save_state()
+        trainer.save_model()
+        logger.info("Training completed successfully!")
+
+    except KeyboardInterrupt:
+        logger.warning("Training interrupted by user. Saving current state...")
+        trainer.save_state()
+        trainer.save_model()
+        logger.info("State saved. You can resume with --resume flag.")
+        sys.exit(0)
+
+    except Exception as e:
+        logger.error(f"Training failed with error: {e}")
+        logger.info("Attempting to save current state...")
+        try:
+            trainer.save_state()
+            logger.info("State saved. You can resume with --resume flag.")
+        except Exception as save_error:
+            logger.error(f"Failed to save state: {save_error}")
+        raise
+
 
 if __name__ == "__main__":
     main()
