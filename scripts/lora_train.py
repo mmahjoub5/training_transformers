@@ -136,16 +136,22 @@ def main():
         attn_implementation=model_config.attn_implementation,
         device_map = "auto"
     )
-    # Set pad token with fallback chain: unk -> eos -> add new
-    if tokenizer.unk_token is not None:
-        tokenizer.pad_token = tokenizer.unk_token
-    elif tokenizer.eos_token is not None:
-        tokenizer.pad_token = tokenizer.eos_token
-        logger.warning("Using eos_token as pad_token (unk_token not available)")
-    else:
-        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        model.resize_token_embeddings(len(tokenizer))
-        logger.warning("Added new [PAD] token and resized embeddings")
+    # Set pad token: prefer existing pad; else use eos; else add new
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+            logger.warning("Using eos_token as pad_token")
+        else:
+            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            model.resize_token_embeddings(len(tokenizer))
+            logger.warning("Added new [PAD] token and resized embeddings")
+
+    # Make sure model configs align
+    model.config.pad_token_id = tokenizer.pad_token_id
+    if hasattr(model, "generation_config"):
+        model.generation_config.pad_token_id = tokenizer.pad_token_id
+
+
 
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
     tokenizer.padding_side = 'right'
