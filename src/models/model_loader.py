@@ -44,9 +44,8 @@ def load_model(
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
 
-    # Only set custom chat template if model doesn't have one
-    if not getattr(tokenizer, "chat_template", None):
-        tokenizer.chat_template = r"""
+    # Always use custom chat template with {% generation %} tags for assistant_only_loss
+    tokenizer.chat_template = r"""
     {% for message in messages %}
     {% if message['role'] == 'system' %}
     <|system|>
