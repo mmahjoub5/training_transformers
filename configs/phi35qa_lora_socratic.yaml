@@ -18,7 +18,7 @@ data:
   preprocessor: SocraticPreprocessor
 
 tokenizer:
-  max_length: 2048
+  max_length: 4096
 
 training:
   batch_size: 4

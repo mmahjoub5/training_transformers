@@ -158,7 +158,7 @@ def main():
 
 
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
-    tokenizer.padding_side = 'right'
+    tokenizer.padding_side = 'left'
     logger.info(f"Pad token: '{tokenizer.pad_token}' (id={tokenizer.pad_token_id})")
 
 
