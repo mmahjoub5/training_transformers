@@ -26,7 +26,7 @@ training:
   lr_scheduler_type: cosine
   warmup_ratio: 0.03         
   epochs: 10
-  output_dir: output/1-6/lr1e4/socratic/phi2/
+  output_dir: output/1-6/lr1e4/token4096/socratic/phi2/
   eval_steps: 150
   gradient_accumulation_steps: 8
   gradient_checkpointing: true
@@ -38,7 +38,7 @@ training:
 
 logging:
   report_to: tensorboard
-  logging_dir: "./phi35/1-6/lr1e4/socratic/runs"
+  logging_dir: "./phi35/1-6/lr1e4/token4096/socratic/runs"
   logging_steps: 10
   save_steps: 250
   level: info
