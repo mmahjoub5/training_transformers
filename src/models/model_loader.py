@@ -46,7 +46,7 @@ def load_model(
     role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
 
     tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
-    model.resize_token_embeddings(len(tokenizer))
+   
 
     print("+++++++++++++++++++++++++++++++++++++++++++++")
     print(tokenizer.all_special_tokens)
@@ -74,6 +74,7 @@ def load_model(
         model = AutoModelForQuestionAnswering.from_pretrained(
             model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code
         )
+        model.resize_token_embeddings(len(tokenizer))
         return tokenizer, model
 
     if kind == "clm":
@@ -90,7 +91,7 @@ def load_model(
         # Keep model config consistent with tokenizer
         if getattr(model.config, "pad_token_id", None) is None:
             model.config.pad_token_id = tokenizer.pad_token_id
-
+        model.resize_token_embeddings(len(tokenizer))
         return tokenizer, model
 
     raise ValueError(f"Unknown kind: {kind}")
