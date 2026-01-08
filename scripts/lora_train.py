@@ -282,10 +282,10 @@ def main():
     total_tokens, target_tokens = validate_batch(input_ids, labels, tokenizer)
 
     # Log sample for debugging
-    logger.info(f"FULL INPUT (first 2000 chars):\n{tokenizer.decode(input_ids, skip_special_tokens=False)[:2000]}")
+    logger.info(f"FULL INPUT (first 2000 chars):\n{tokenizer.decode(input_ids, skip_special_tokens=False)[:config["tokenizer"]["max_length"]]}")
 
     target_ids = [tid for tid, lab in zip(input_ids, labels) if lab != -100]
-    logger.info(f"TARGET TOKENS (first 2000 chars):\n{tokenizer.decode(target_ids, skip_special_tokens=False)[:2000]}")
+    logger.info(f"TARGET TOKENS (first 2000 chars):\n{tokenizer.decode(target_ids, skip_special_tokens=False)[:config["tokenizer"]["max_length"]]}")
 
     logger.info(f"Token counts: total={total_tokens}, target={target_tokens}, masked={total_tokens - target_tokens}")
 
