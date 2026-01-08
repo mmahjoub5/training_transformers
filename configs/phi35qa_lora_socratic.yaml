@@ -24,6 +24,7 @@ training:
   batch_size: 4
   lr: 5.0e-06
   lr_scheduler_type: cosine
+  warmup_ratio: 0.2
   epochs: 10
   output_dir: output/1-2/socratic/phi2/
   eval_steps: 150
@@ -32,6 +33,10 @@ training:
   precision: bf16
   max_steps: 12000
   eval_strategy: steps
+  load_best_model_at_end: true
+  early_stopping_patience: 3
+  metric_for_best_model: eval_loss
+  greater_is_better: false
 
 
 
@@ -39,13 +44,14 @@ logging:
   report_to: tensorboard
   logging_dir: "./phi2/1-2/socratic/runs"
   logging_steps: 10
-  save_steps: 250
+  save_steps: 150
   level: info
   save_strategy: steps
+  save_total_limit: 3
 
 lora:
   rank: 16
-  lora_alpha: 12
+  lora_alpha: 32
   lora_dropout: 0.05
   bias: none
   task_type: CAUSAL_LM

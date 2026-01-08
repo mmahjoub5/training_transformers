@@ -8,7 +8,7 @@ from src.config.model_config import ModelConfig
 from src.config.training_config import TrainingConfig
 from src.config.lora_config import LoraConfigSpec
 from src.config.logging_config import LoggingConfig
-from transformers import TrainingArguments, Trainer
+from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
 from src.metrics.compute_metrics import BehaviorMetricsComputer
 from src.data.eli_preprocess import ELI5Preprocessor_QA
 from src.data.data_utils import PREPROCESSOR_REGISTRY
@@ -77,7 +77,7 @@ def main():
         kind=model_config.kind,
         precision=precision,
         attn_implementation=model_config.attn_implementation,
-        #device_map = "none"
+        device_map = "auto"
     )
     tokenizer.pad_token = tokenizer.unk_token  # use unk rather than eos token to prevent endless generation
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
@@ -131,8 +131,10 @@ def main():
         )
     else :
         lora_cfg = None
-
-
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+    print(training_config)
+    print(str(training_config.eval_strategy))
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     training_args = SFTConfig(
         output_dir=training_config.output_dir,
         per_device_train_batch_size=training_config.batch_size,
@@ -147,6 +149,10 @@ def main():
         report_to=logging_config.report_to,
         logging_dir=logging_config.logging_dir,
         save_strategy=logging_config.save_strategy,
+        save_total_limit=logging_config.save_total_limit,
+        load_best_model_at_end=training_config.load_best_model_at_end,
+        metric_for_best_model=training_config.metric_for_best_model,
+        greater_is_better=training_config.greater_is_better,
 
         #steps 
         max_steps=training_config.max_steps,
@@ -158,9 +164,9 @@ def main():
         # Mixed precision (CUDA only)
         fp16=use_fp16,
         bf16=use_bf16,
-        tf32=use_fp16, 
+        tf32=use_bf16,  # tf32 benefits Ampere+ GPUs with bf16 
         # Evaluation / saving strategies
-        eval_strategy=training_config.eval_strategy,
+        eval_strategy=str(training_config.eval_strategy),
         do_eval=True,
         eval_steps=training_config.eval_steps, 
         gradient_accumulation_steps=training_config.gradient_accumulation_steps,
@@ -169,33 +175,33 @@ def main():
         optim=training_config.optim,
         max_grad_norm=training_config.max_grad_norm,
         warmup_ratio=training_config.warmup_ratio,
+        lr_scheduler_type=training_config.lr_scheduler_type,
+        seed=config["data"].get("seed", 42),
 
         # If you later go multi-GPU with torchrun/DDP
         ddp_find_unused_parameters=False,
 
-        max_length=4096,
+        max_length=config["tokenizer"]["max_length"],
         dataset_text_field="messages",
-        packing=True,
+        packing=False,
         assistant_only_loss=True
     )
     
-    metrics_callback = MetricsEvalCallback(
-        eval_data=processed_data["test"],
-        eval_steps=training_args.eval_steps,
-        max_samples=200,
-        batch_size=4,
-    )
+  
+    callbacks = []
+    if training_config.early_stopping_patience is not None:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=training_config.early_stopping_patience))
+
     trainer = SFTTrainer(
         model=model,
         processing_class=tokenizer,
         args=training_args,
-        peft_config=lora_cfg, 
+        peft_config=lora_cfg,
         train_dataset=processed_data["train"],
         eval_dataset=processed_data["test"],
-        
-    
+        callbacks=callbacks if callbacks else None,
     )
-    trainer.add_callback(metrics_callback)
+
     
     dl = trainer.get_train_dataloader()
     batch = next(iter(dl))
@@ -227,6 +233,7 @@ def main():
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)
     trainer.save_state()
+    trainer.save_model()
 
 if __name__ == "__main__":
     main()
