@@ -281,13 +281,46 @@ def main():
     # Validate batch - will raise ValueError with helpful message if invalid
     total_tokens, target_tokens = validate_batch(input_ids, labels, tokenizer)
 
-    # Log sample for debugging
-    logger.info(f"FULL INPUT (first 2000 chars):\n{tokenizer.decode(input_ids, skip_special_tokens=False)[:config["tokenizer"]["max_length"]]}")
+    max_chars = config["tokenizer"]["max_length"]  # rename: this is chars, not tokens
 
-    target_ids = [tid for tid, lab in zip(input_ids, labels) if lab != -100]
-    logger.info(f"TARGET TOKENS (first 2000 chars):\n{tokenizer.decode(target_ids, skip_special_tokens=False)[:config["tokenizer"]["max_length"]]}")
+    # Make sure we're decoding a python list, not a tensor
+    full_ids = input_ids.tolist() if hasattr(input_ids, "tolist") else list(input_ids)
+    lab_ids  = labels.tolist() if hasattr(labels, "tolist") else list(labels)
 
-    logger.info(f"Token counts: total={total_tokens}, target={target_tokens}, masked={total_tokens - target_tokens}")
+    full_text = tokenizer.decode(full_ids, skip_special_tokens=False)
+    logger.info("FULL INPUT (first %d chars):\n%s", max_chars, full_text[:max_chars])
+
+    # Masked view: keep positions, replace masked tokens with PAD (or EOS)
+    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
+    masked_ids = [tid if lab != -100 else pad_id for tid, lab in zip(full_ids, lab_ids)]
+
+    masked_text = tokenizer.decode(masked_ids, skip_special_tokens=False)
+    logger.info("TARGET VIEW (masked, first %d chars):\n%s", max_chars, masked_text[:max_chars])
+
+    # Optional: show contiguous target spans (much more interpretable)
+    spans = []
+    start = None
+    for i, lab in enumerate(lab_ids):
+        if lab != -100 and start is None:
+            start = i
+        if (lab == -100 or i == len(lab_ids) - 1) and start is not None:
+            end = i if lab == -100 else i + 1
+            spans.append((start, end))
+            start = None
+
+    for j, (s, e) in enumerate(spans[:3]):
+        chunk = tokenizer.decode(full_ids[s:e], skip_special_tokens=False)
+        logger.info("TARGET SPAN %d (%d:%d): %s", j, s, e, chunk[:300])
+
+    # UNK sanity
+    unk_id = tokenizer.unk_token_id
+    logger.info("UNK count full=%d masked=%d",
+                full_ids.count(unk_id),
+                masked_ids.count(unk_id))
+
+    logger.info("Token counts: total=%d, target=%d, masked=%d",
+                total_tokens, target_tokens, total_tokens - target_tokens)
+
 
     # Check for resume
     resume_checkpoint = None
