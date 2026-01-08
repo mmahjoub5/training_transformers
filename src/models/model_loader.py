@@ -43,23 +43,31 @@ def load_model(
     }[precision]
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
+    role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
 
+    tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
+    model.resize_token_embeddings(len(tokenizer))
+
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
+    print(tokenizer.all_special_tokens)
+    print(tokenizer.special_tokens_map)
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
     # Always use custom chat template with {% generation %} tags for assistant_only_loss
     tokenizer.chat_template = r"""
     {% for message in messages %}
-    {% if message['role'] == 'system' %}
+    {% if message['role'] == 'system' -%}
     <|system|>
-    {{ message['content'] }}{{ eos_token }}
-    {% elif message['role'] == 'user' %}
+    {{ message['content'] }}
+    {% elif message['role'] == 'user' -%}
     <|user|>
-    {{ message['content'] }}{{ eos_token }}
-    {% elif message['role'] == 'assistant' %}
+    {{ message['content'] }}
+    {% elif message['role'] == 'assistant' -%}
     <|assistant|>
-    {% generation %}
-    {{ message['content'] }}{{ eos_token }}
-    {% endgeneration %}
-    {% endif %}
+    {% generation %}{{ message['content'] }}{% endgeneration %}
+    {% endif -%}
+    {{ "\n" }}
     {% endfor %}
+    {{ eos_token }}
     """.strip()
 
     if kind == "qa":
