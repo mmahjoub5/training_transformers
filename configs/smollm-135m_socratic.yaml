@@ -32,7 +32,7 @@ training:
 logging:
   report_to: tensorboard
   logging_dir: "./smollm1229/runs"
-  log_every: 10
+  log_every: 1
   save_every: 2
   level: info
   save_strategy: steps

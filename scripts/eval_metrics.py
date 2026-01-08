@@ -50,6 +50,7 @@ def main() -> None:
         if tokenizer.eos_token_id is None:
             raise ValueError("Tokenizer has no pad_token and no eos_token; can't set padding.")
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
 
     do_sample = None
     if args.do_sample:

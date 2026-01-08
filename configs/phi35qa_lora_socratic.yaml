@@ -22,32 +22,27 @@ tokenizer:
 
 training:
   batch_size: 4
-  lr: 5.0e-06
+  lr: 1.0e-4
   lr_scheduler_type: cosine
-  warmup_ratio: 0.2
+  warmup_ratio: 0.03         
   epochs: 10
-  output_dir: output/1-2/socratic/phi2/
+  output_dir: output/1-6/lr1e4/socratic/phi2/
   eval_steps: 150
   gradient_accumulation_steps: 8
   gradient_checkpointing: true
   precision: bf16
   max_steps: 12000
   eval_strategy: steps
-  load_best_model_at_end: true
-  early_stopping_patience: 3
-  metric_for_best_model: eval_loss
-  greater_is_better: false
 
 
 
 logging:
   report_to: tensorboard
-  logging_dir: "./phi2/1-2/socratic/runs"
+  logging_dir: "./phi35/1-6/lr1e4/socratic/runs"
   logging_steps: 10
-  save_steps: 150
+  save_steps: 250
   level: info
   save_strategy: steps
-  save_total_limit: 3
 
 lora:
   rank: 16

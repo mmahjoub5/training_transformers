@@ -38,6 +38,7 @@ class EvalConfig:
     max_samples: Optional[int] = None
     seed: int = 42
     generation: GenerationConfig = field(default_factory=GenerationConfig)
+    max_length: Optional[int] = None
 
 
 def _load_json_or_jsonl(path: str) -> List[Dict[str, Any]]:
@@ -127,6 +128,7 @@ def generate_outputs(
     examples: Sequence[Dict[str, Any]],
     gen_cfg: GenerationConfig,
     batch_size: int,
+    max_length: Optional[int],
 ) -> List[str]:
     prompts = []
     for ex in examples:
@@ -142,15 +144,18 @@ def generate_outputs(
     if do_sample is None:
         do_sample = gen_cfg.temperature > 0
 
+    tokenizer.padding_side = "left"
     model.eval()
     with torch.no_grad():
         for batch_prompts in _batch_iter(prompts, batch_size):
-            enc = tokenizer(
-                list(batch_prompts),
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-            )
+            tokenizer_kwargs = {
+                "return_tensors": "pt",
+                "padding": True,
+                "truncation": max_length is not None,
+            }
+            if max_length is not None:
+                tokenizer_kwargs["max_length"] = max_length
+            enc = tokenizer(list(batch_prompts), **tokenizer_kwargs)
             enc = {k: v.to(device) for k, v in enc.items()}
             input_lengths = enc["attention_mask"].sum(dim=1).tolist()
             gen = model.generate(
@@ -173,6 +178,7 @@ def compute_eval_loss(
     tokenizer: PreTrainedTokenizerBase,
     examples: Sequence[Dict[str, Any]],
     batch_size: int,
+    max_length: Optional[int],
 ) -> float:
     device = model.device
     model.eval()
@@ -198,13 +204,15 @@ def compute_eval_loss(
         for batch in _batch_iter(prompt_targets, batch_size):
             prompts = [p for p, _t in batch]
             full_texts = [p + t for p, t in batch]
-            enc = tokenizer(
-                full_texts,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                add_special_tokens=False,
-            )
+            tokenizer_kwargs = {
+                "return_tensors": "pt",
+                "padding": True,
+                "truncation": max_length is not None,
+                "add_special_tokens": False,
+            }
+            if max_length is not None:
+                tokenizer_kwargs["max_length"] = max_length
+            enc = tokenizer(full_texts, **tokenizer_kwargs)
             enc = {k: v.to(device) for k, v in enc.items()}
             labels = enc["input_ids"].clone()
             labels.fill_(-100)
@@ -250,7 +258,8 @@ def compute_metrics(
     metrics["avg_response_length_tokens"] = sum(lengths_tokens) / len(lengths_tokens)
 
     sorted_tokens = sorted(lengths_tokens)
-    p95_idx = int(0.95 * (len(sorted_tokens) - 1))
+    p95_rank = math.ceil(0.95 * len(sorted_tokens)) - 1
+    p95_idx = max(0, min(p95_rank, len(sorted_tokens) - 1))
     metrics["p95_response_length_tokens"] = sorted_tokens[p95_idx]
 
     metrics["step_list_rate"] = sum(count_step_lines(t) >= 3 for t in outputs) / len(outputs)
@@ -276,6 +285,7 @@ def evaluate(
         examples=eval_examples,
         gen_cfg=cfg.generation,
         batch_size=cfg.batch_size,
+        max_length=cfg.max_length,
     )
 
     metrics = compute_metrics(outputs, tokenizer=tokenizer)
@@ -284,6 +294,7 @@ def evaluate(
         tokenizer=tokenizer,
         examples=eval_examples,
         batch_size=cfg.batch_size,
+        max_length=cfg.max_length,
     )
     metrics["eval_loss"] = eval_loss
 
