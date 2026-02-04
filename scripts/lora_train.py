@@ -53,6 +53,12 @@ parser.add_argument(
     action="store_true",
     help="Resume training from latest checkpoint in output_dir",
 )
+parser.add_argument(
+    "--checkpoint_path",
+    type=str,
+    default=None,
+    help="Path to specific checkpoint to resume from (overrides --resume)",
+)
 
 args = parser.parse_args()
 logger = logging.getLogger(__name__)
@@ -97,6 +103,15 @@ def validate_batch(input_ids, labels, tokenizer):
         raise ValueError(
             f"All tokens are target tokens ({target_tokens}/{total_tokens}). "
             "This suggests labels are not being masked properly."
+        )
+
+    # Check EOS is in target tokens (model must learn to produce EOS)
+    eos_id = tokenizer.eos_token_id
+    eos_in_targets = any(lab == eos_id for lab in labels if lab != -100)
+    if not eos_in_targets:
+        raise ValueError(
+            f"EOS token (id={eos_id}) not found in target tokens! "
+            "The model won't learn to generate EOS. Check chat template."
         )
 
     return total_tokens, target_tokens
@@ -334,10 +349,16 @@ def main():
 
     # Check for resume
     resume_checkpoint = None
-    if args.resume:
+    if args.checkpoint_path:
+        # Explicit path takes priority
+        if not Path(args.checkpoint_path).exists():
+            raise ValueError(f"Checkpoint path does not exist: {args.checkpoint_path}")
+        resume_checkpoint = args.checkpoint_path
+        logger.info(f"Using specified checkpoint: {resume_checkpoint}")
+    elif args.resume:
         resume_checkpoint = find_latest_checkpoint(training_config.output_dir)
         if resume_checkpoint:
-            logger.info(f"Resuming from checkpoint: {resume_checkpoint}")
+            logger.info(f"Resuming from latest checkpoint: {resume_checkpoint}")
         else:
             logger.warning("--resume flag set but no checkpoint found. Starting from scratch.")
 

@@ -29,6 +29,8 @@ else
   else
     echo "📦 Installing Miniconda (non-interactive)"
     bash "$INSTALLER" -b -p "$HOME/miniconda3"
+    ~/miniconda3/bin/conda init
+    source ~/.bashrc
   fi
 
   rm -f "$INSTALLER"

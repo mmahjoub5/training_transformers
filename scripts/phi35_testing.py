@@ -1,24 +1,48 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
 
-MODEL_ID = "microsoft/Phi-3.5-mini-instruct"
+BASE_MODEL_ID = "microsoft/Phi-3.5-mini-instruct"   # or your base path
+ADAPTER_DIR = "/home/ubuntu/training_transformers/output/1-6/lr1e4/token4096/socratic/phi2/checkpoint-750"
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=False)
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID,
-    trust_remote_code=False,
+tokenizer = AutoTokenizer.from_pretrained(ADAPTER_DIR, trust_remote_code=False, use_fast=True)
+base = AutoModelForCausalLM.from_pretrained(
+    BASE_MODEL_ID,
     device_map="auto",
-    torch_dtype=torch.float16 if torch.cuda.is_available() else None,
+    torch_dtype=torch.float16,
 )
 
+INFER_TEMPLATE = r"""{% for message in messages -%}
+{% if message['role'] == 'system' -%}<|system|>
+{{ message['content'] }}
+{% elif message['role'] == 'user' -%}<|user|>
+{{ message['content'] }}
+{% elif message['role'] == 'assistant' -%}<|assistant|>
+{{ message['content'] }}
+{% endif -%}
+{{ "\n" -}}
+{% endfor -%}
+{% if add_generation_prompt -%}<|assistant|>
+{% endif -%}""".strip()
+
+
+
+# IMPORTANT: resize base to tokenizer length BEFORE loading adapter
+base.resize_token_embeddings(len(tokenizer))
+model = PeftModel.from_pretrained(base, ADAPTER_DIR)
+model.eval()
+model = model.merge_and_unload()
+print("chat template")
+print(tokenizer.chat_template)
+
+tokenizer.chat_template = INFER_TEMPLATE
 SYSTEM_PROMPT = """
-You are a strict Socratic tutor.
-
-Never reveal final answers, equations, or numerical results.
-Your only tools are questions, hints, and pointing out missing reasoning steps.
-
-If the user asks for the answer, refuse briefly and continue tutoring.
-Always end with a question.
+You are a strict Socratic tutor. 
+Ask at most 1 question per response. and stop after initial question
+Do not include sections, headings, or exercises.
+Do not say “Your Turn”.
+Do not role-play.
+After asking the questions, stop.
 """.strip()
 
 EXAMPLE_CONVERSATION = """
@@ -38,9 +62,10 @@ senior_engineer: Good thinking. Instead of forcing a perfect lock, you can choos
 messages = [
     {
         "role": "system",
-        "content": SYSTEM_PROMPT + "\n\n" + EXAMPLE_CONVERSATION,
+        "content": SYSTEM_PROMPT
     }
 ]
+end_id = tokenizer.convert_tokens_to_ids("<|end|>")
 
 @torch.no_grad()
 def generate_reply(messages, max_new_tokens=200, temperature=0.7, top_p=0.9):
@@ -54,19 +79,19 @@ def generate_reply(messages, max_new_tokens=200, temperature=0.7, top_p=0.9):
 
     outputs = model.generate(
         **inputs,
-        max_new_tokens=max_new_tokens,
+        max_new_tokens=8196,
         do_sample=True,
         temperature=temperature,
         top_p=top_p,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.eos_token_id,
+        eos_token_id=end_id,
+        pad_token_id=tokenizer.pad_token_id,
     )
 
     new_tokens = outputs[0][inputs["input_ids"].shape[-1]:]
     return tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
 def main():
-    print(f"Loaded: {MODEL_ID}")
+    print(f"Loaded: {ADAPTER_DIR}")
     print("Type your question. Commands: /exit, /reset, /params\n")
 
     # default params

@@ -1,0 +1,50 @@
+model:
+  name: microsoft/Phi-3.5-mini-instruct
+  kind: clm
+  attn_implementation: sdpa
+
+data:
+  name: json
+  data_file: data/custom_dataset/policy_shift.jsonl  # Update path if needed
+  split: null
+  config_name: null
+  train_split: train
+  val_split: validation
+  test_split: null
+  max_train_samples: null
+  max_val_samples: null
+  shuffle_train: true
+  seed: 42
+  preprocessor: SocraticPreprocessor
+
+tokenizer:
+  max_length: 1024  # Short examples for focused EOS training
+
+training:
+  batch_size: 8
+  lr: 5.0e-5  # Lower LR for targeted fix
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  epochs: 3
+  output_dir: output/eos_fix/phi35/
+  eval_steps: 50
+  gradient_accumulation_steps: 4
+  gradient_checkpointing: true
+  precision: bf16
+  max_steps: -1
+  eval_strategy: steps
+
+logging:
+  report_to: tensorboard
+  logging_dir: "./runs/eos_fix"
+  logging_steps: 10
+  save_steps: 100
+  level: info
+  save_strategy: steps
+
+lora:
+  rank: 8  # Lower rank for targeted fix
+  lora_alpha: 16
+  lora_dropout: 0.05
+  bias: none
+  task_type: CAUSAL_LM

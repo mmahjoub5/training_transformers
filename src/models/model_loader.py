@@ -53,6 +53,7 @@ def load_model(
     print(tokenizer.special_tokens_map)
     print("+++++++++++++++++++++++++++++++++++++++++++++")
     # Always use custom chat template with {% generation %} tags for assistant_only_loss
+    # EOS must be INSIDE {% generation %} tags so model learns to produce it
     tokenizer.chat_template = r"""
     {% for message in messages %}
     {% if message['role'] == 'system' -%}
@@ -63,11 +64,10 @@ def load_model(
     {{ message['content'] }}
     {% elif message['role'] == 'assistant' -%}
     <|assistant|>
-    {% generation %}{{ message['content'] }}{% endgeneration %}
+    {% generation %}{{ message['content'] }}{{ eos_token }}{% endgeneration %}
     {% endif -%}
     {{ "\n" }}
     {% endfor %}
-    {{ eos_token }}
     """.strip()
 
     if kind == "qa":
