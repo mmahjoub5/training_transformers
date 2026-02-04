@@ -73,4 +73,4 @@ conda activate "$ENV_NAME"
 ###############################################
 # RUN Script
 ###############################################
-python -m scripts.lora_train --config configs/phi35qa_lora_socratic.yaml --proc 10
+python -m scripts.lora_train --config configs/phi35_eos_fix.yaml --proc 10 

@@ -1,12 +1,11 @@
 model:
-  name: microsoft/Phi-3.5-mini-instruct
-  adapter: /home/ubuntu/training_transformers/checkpoints/checkpoint-1750
+  name: /home/ubuntu/training_transformers/checkpoints/checkpoint-1750
   kind: clm
   attn_implementation: sdpa
 
 data:
   name: json
-  data_file: data/custom_dataset/policy_shift.jsonl  # Update path if needed
+  data_file: data/custom_dataset/fix_infinte.json  # Update path if needed
   split: null
   config_name: null
   train_split: train
@@ -23,23 +22,24 @@ tokenizer:
 
 training:
   batch_size: 8
-  lr: 5.0e-5  # Lower LR for targeted fix
+  gradient_accumulation_steps: 4   # effective batch 32
+  max_steps: 80                    # ~80 optimizer updates is plenty for EOS
+  lr: 1.0e-4                       # or 5e-5 if you're cautious
   lr_scheduler_type: cosine
-  warmup_ratio: 0.03
-  epochs: 3
+  warmup_ratio: 0.05
+  weight_decay: 0.0
   output_dir: output/eos_fix/phi35/
-  eval_steps: 50
-  gradient_accumulation_steps: 4
+  evaluation_strategy: steps
+  eval_steps: 20
   gradient_checkpointing: true
-  precision: bf16
-  max_steps: -1
-  eval_strategy: steps
+  bf16: true
+  epochs: 10
 
 logging:
   report_to: tensorboard
   logging_dir: "./runs/eos_fix"
-  logging_steps: 10
-  save_steps: 100
+  logging_steps: 5
+  save_steps: 20
   level: info
   save_strategy: steps
 
