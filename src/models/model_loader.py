@@ -50,8 +50,8 @@ def load_model(
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
     
     role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
-
-    tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
+    if adapter is  None:
+        tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
    
 
     print("+++++++++++++++++++++++++++++++++++++++++++++")
