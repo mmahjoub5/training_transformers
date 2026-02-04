@@ -146,6 +146,7 @@ def main():
     # Load model/tokenizer (your loader may already handle dtype; AMP is controlled by TrainingArguments)
     tokenizer, model = load_model(
         model_name=model_config.model_name,
+        adapter=model_config.adapter,
         kind=model_config.kind,
         precision=precision,
         attn_implementation=model_config.attn_implementation,

@@ -18,6 +18,7 @@ ModelKind = Literal["qa", "clm"]  # qa = span-extractive, clm = causal language 
 def load_model(
     model_name: str,
     kind: ModelKind,
+    adapter: Optional[str] = None,
     precision: Literal["fp32", "fp16", "bf16"] = "fp32",
     trust_remote_code: bool = False,
     **args,
@@ -41,8 +42,13 @@ def load_model(
         "fp16": torch.float16,
         "bf16": torch.bfloat16,
     }[precision]
+    
+    if adapter is not None:
+        tokenizer = AutoTokenizer.from_pretrained(adapter, use_fast=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
+    
     role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
 
     tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
@@ -78,9 +84,23 @@ def load_model(
         return tokenizer, model
 
     if kind == "clm":
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code, **args
-        )
+        if adapter is not None:
+            base_model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                device_map="auto",
+                torch_dtype=dtype,
+                trust_remote_code=trust_remote_code,
+            )
+            from peft import PeftModel
+            # 3) Make base embeddings match tokenizer size (important if you added tokens)
+            base_model.resize_token_embeddings(len(tokenizer))
+            model = PeftModel.from_pretrained(base_model, adapter, torch_dtype=dtype)
+            model.train(True)
+            print("Loaded model with adapter from:", adapter)
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code, **args
+            )
 
         # Many decoder-only tokenizers don't have a pad token; set it to eos for batching.
         if tokenizer.pad_token_id is None:
@@ -92,6 +112,11 @@ def load_model(
         if getattr(model.config, "pad_token_id", None) is None:
             model.config.pad_token_id = tokenizer.pad_token_id
         model.resize_token_embeddings(len(tokenizer))
+            # Resize ONLY if tokenizer length differs from model embeddings
+
+        if model.get_input_embeddings().weight.shape[0] != len(tokenizer):
+            model.resize_token_embeddings(len(tokenizer))
+
         return tokenizer, model
 
     raise ValueError(f"Unknown kind: {kind}")

@@ -1,5 +1,6 @@
 model:
   name: microsoft/Phi-3.5-mini-instruct
+  adapter: /home/ubuntu/training_transformers/checkpoints/checkpoint-1750
   kind: clm
   attn_implementation: sdpa
 
