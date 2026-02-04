@@ -3,7 +3,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 
 BASE_MODEL_ID = "microsoft/Phi-3.5-mini-instruct"   # or your base path
-ADAPTER_DIR = "/home/ubuntu/training_transformers/output/1-6/lr1e4/token4096/socratic/phi2/checkpoint-750"
+ADAPTER_DIR = "/home/ubuntu/training_transformers/output/eos_fix/phi35/checkpoint-20"
 
 tokenizer = AutoTokenizer.from_pretrained(ADAPTER_DIR, trust_remote_code=False, use_fast=True)
 base = AutoModelForCausalLM.from_pretrained(
@@ -65,7 +65,7 @@ messages = [
         "content": SYSTEM_PROMPT
     }
 ]
-end_id = tokenizer.convert_tokens_to_ids("<|end|>")
+end_id = tokenizer.convert_tokens_to_ids("<|endoftext|>")
 
 @torch.no_grad()
 def generate_reply(messages, max_new_tokens=200, temperature=0.7, top_p=0.9):
@@ -79,12 +79,14 @@ def generate_reply(messages, max_new_tokens=200, temperature=0.7, top_p=0.9):
 
     outputs = model.generate(
         **inputs,
-        max_new_tokens=8196,
+        max_new_tokens=400,
         do_sample=True,
         temperature=temperature,
         top_p=top_p,
         eos_token_id=end_id,
         pad_token_id=tokenizer.pad_token_id,
+        # stop_strings=["<|user|>", "<|system|>", "\n### user", "\n### assistant"],
+        # tokenizer=tokenizer,   # <-- MUST be here
     )
 
     new_tokens = outputs[0][inputs["input_ids"].shape[-1]:]
@@ -95,7 +97,7 @@ def main():
     print("Type your question. Commands: /exit, /reset, /params\n")
 
     # default params
-    gen_params = {"max_new_tokens": 200, "temperature": 0.7, "top_p": 0.9}
+    gen_params = {"max_new_tokens": 10, "temperature": 0.7, "top_p": 0.9}
 
     while True:
         user_text = input("you> ").strip()
@@ -128,6 +130,7 @@ def main():
         messages.append({"role": "user", "content": user_text})
 
         assistant_text = generate_reply(messages, **gen_params)
+        print("waitinf for response")
         print(f"phi> {assistant_text}\n")
 
         messages.append({"role": "assistant", "content": assistant_text})
