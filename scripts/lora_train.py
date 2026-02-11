@@ -20,6 +20,11 @@ import argparse
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from trl import SFTTrainer, SFTConfig
 from metrics_eval.callback import MetricsEvalCallback
+from src.config.profiling_config import ProfilingConfig
+from src.config.deepspeed_config import DeepSpeedConfig
+from src.training.trainer_factory import build_training_args, build_callbacks
+from src.utils.experiment import save_experiment_manifest
+from src.profiling.callback import ProfilingCallback
 
 # Setup logging
 logging.basicConfig(
@@ -58,6 +63,11 @@ parser.add_argument(
     type=str,
     default=None,
     help="Path to specific checkpoint to resume from (overrides --resume)",
+)
+parser.add_argument(
+    "--validate-batch",
+    action="store_true",
+    help="Run batch structure validation before training (useful for debugging)",
 )
 
 args = parser.parse_args()
@@ -117,12 +127,59 @@ def validate_batch(input_ids, labels, tokenizer):
     return total_tokens, target_tokens
 
 
+def validate_and_log_batch(trainer, tokenizer, config):
+    """Validate a batch and log structure details for debugging."""
+    logger.info("Validating batch structure...")
+    dl = trainer.get_train_dataloader()
+    batch = next(iter(dl))
+    logger.info(f"Batch keys: {batch.keys()}")
+
+    input_ids = batch["input_ids"][0].tolist()
+    labels = batch["labels"][0].tolist()
+
+    total_tokens, target_tokens = validate_batch(input_ids, labels, tokenizer)
+
+    max_chars = config["tokenizer"]["max_length"]
+    full_ids = input_ids.tolist() if hasattr(input_ids, "tolist") else list(input_ids)
+    lab_ids = labels.tolist() if hasattr(labels, "tolist") else list(labels)
+
+    full_text = tokenizer.decode(full_ids, skip_special_tokens=False)
+    logger.info("FULL INPUT (first %d chars):\n%s", max_chars, full_text[:max_chars])
+
+    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
+    masked_ids = [tid if lab != -100 else pad_id for tid, lab in zip(full_ids, lab_ids)]
+    masked_text = tokenizer.decode(masked_ids, skip_special_tokens=False)
+    logger.info("TARGET VIEW (masked, first %d chars):\n%s", max_chars, masked_text[:max_chars])
+
+    spans = []
+    start = None
+    for i, lab in enumerate(lab_ids):
+        if lab != -100 and start is None:
+            start = i
+        if (lab == -100 or i == len(lab_ids) - 1) and start is not None:
+            end = i if lab == -100 else i + 1
+            spans.append((start, end))
+            start = None
+
+    for j, (s, e) in enumerate(spans[:3]):
+        chunk = tokenizer.decode(full_ids[s:e], skip_special_tokens=False)
+        logger.info("TARGET SPAN %d (%d:%d): %s", j, s, e, chunk[:300])
+
+    unk_id = tokenizer.unk_token_id
+    logger.info("UNK count full=%d masked=%d", full_ids.count(unk_id), masked_ids.count(unk_id))
+    logger.info("Token counts: total=%d, target=%d, masked=%d",
+                total_tokens, target_tokens, total_tokens - target_tokens)
+
+
 def main():
+    """Main training function for LoRA fine-tuning of transformer models."""
     config = load_config(args.config)
     model_config = ModelConfig.from_dict(config)
     training_config = TrainingConfig.from_dict(config)
     logging_config = LoggingConfig.from_dict(config)
     lora_config = LoraConfigSpec.from_dict(config) if config.get("lora") is not None else None
+    deepspeed_config = DeepSpeedConfig.from_dict(config)
+    profiling_config = ProfilingConfig.from_dict(config)
 
     # --- Device / precision setup ---
     use_cuda = torch.cuda.is_available()
@@ -227,62 +284,13 @@ def main():
     logger.info(f"Training config: {training_config}")
     logger.info(f"Eval strategy: {training_config.eval_strategy}")
 
-    training_args = SFTConfig(
-        output_dir=training_config.output_dir,
-        per_device_train_batch_size=training_config.batch_size,
-        per_device_eval_batch_size=training_config.batch_size,
-        learning_rate=training_config.lr,
-        num_train_epochs=training_config.epochs,
-        weight_decay=training_config.weight_decay,
-
-        # Logging / saving
-        logging_steps=logging_config.logging_steps,
-        save_steps=logging_config.save_steps,
-        report_to=logging_config.report_to,
-        logging_dir=logging_config.logging_dir,
-        save_strategy=logging_config.save_strategy,
-        save_total_limit=logging_config.save_total_limit,
-        load_best_model_at_end=training_config.load_best_model_at_end,
-        metric_for_best_model=training_config.metric_for_best_model,
-        greater_is_better=training_config.greater_is_better,
-
-        #steps 
-        max_steps=training_config.max_steps,
-
-        # --- GPU performance knobs ---
-        dataloader_pin_memory=use_cuda,  # True on GPU, False on CPU
-        dataloader_num_workers=training_config.num_workers,
-
-        # Mixed precision (CUDA only)
-        fp16=use_fp16,
-        bf16=use_bf16,
-        tf32=use_bf16,  # tf32 benefits Ampere+ GPUs with bf16 
-        # Evaluation / saving strategies
-        eval_strategy=str(training_config.eval_strategy),
-        do_eval=True,
-        eval_steps=training_config.eval_steps, 
-        gradient_accumulation_steps=training_config.gradient_accumulation_steps,
-
-        # Common stability/perf options (optional but helpful)
-        optim=training_config.optim,
-        max_grad_norm=training_config.max_grad_norm,
-        warmup_ratio=training_config.warmup_ratio,
-        lr_scheduler_type=training_config.lr_scheduler_type,
-        seed=config["data"].get("seed", 42),
-
-        # If you later go multi-GPU with torchrun/DDP
-        ddp_find_unused_parameters=False,
-
-        max_length=config["tokenizer"]["max_length"],
-        dataset_text_field="messages",
-        packing=False,
-        assistant_only_loss=True
+    training_args = build_training_args(
+        training_config, logging_config, deepspeed_config,
+        config, use_cuda, use_fp16, use_bf16
     )
     
   
-    callbacks = []
-    if training_config.early_stopping_patience is not None:
-        callbacks.append(EarlyStoppingCallback(early_stopping_patience=training_config.early_stopping_patience))
+    callbacks = build_callbacks(training_config, profiling_config)
 
     trainer = SFTTrainer(
         model=model,
@@ -294,59 +302,8 @@ def main():
         callbacks=callbacks if callbacks else None,
     )
 
-    # Validate a batch before training
-    logger.info("Validating batch structure...")
-    dl = trainer.get_train_dataloader()
-    batch = next(iter(dl))
-
-    logger.info(f"Batch keys: {batch.keys()}")
-
-    input_ids = batch["input_ids"][0].tolist()
-    labels = batch["labels"][0].tolist()
-
-    # Validate batch - will raise ValueError with helpful message if invalid
-    total_tokens, target_tokens = validate_batch(input_ids, labels, tokenizer)
-
-    max_chars = config["tokenizer"]["max_length"]  # rename: this is chars, not tokens
-
-    # Make sure we're decoding a python list, not a tensor
-    full_ids = input_ids.tolist() if hasattr(input_ids, "tolist") else list(input_ids)
-    lab_ids  = labels.tolist() if hasattr(labels, "tolist") else list(labels)
-
-    full_text = tokenizer.decode(full_ids, skip_special_tokens=False)
-    logger.info("FULL INPUT (first %d chars):\n%s", max_chars, full_text[:max_chars])
-
-    # Masked view: keep positions, replace masked tokens with PAD (or EOS)
-    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
-    masked_ids = [tid if lab != -100 else pad_id for tid, lab in zip(full_ids, lab_ids)]
-
-    masked_text = tokenizer.decode(masked_ids, skip_special_tokens=False)
-    logger.info("TARGET VIEW (masked, first %d chars):\n%s", max_chars, masked_text[:max_chars])
-
-    # Optional: show contiguous target spans (much more interpretable)
-    spans = []
-    start = None
-    for i, lab in enumerate(lab_ids):
-        if lab != -100 and start is None:
-            start = i
-        if (lab == -100 or i == len(lab_ids) - 1) and start is not None:
-            end = i if lab == -100 else i + 1
-            spans.append((start, end))
-            start = None
-
-    for j, (s, e) in enumerate(spans[:3]):
-        chunk = tokenizer.decode(full_ids[s:e], skip_special_tokens=False)
-        logger.info("TARGET SPAN %d (%d:%d): %s", j, s, e, chunk[:300])
-
-    # UNK sanity
-    unk_id = tokenizer.unk_token_id
-    logger.info("UNK count full=%d masked=%d",
-                full_ids.count(unk_id),
-                masked_ids.count(unk_id))
-
-    logger.info("Token counts: total=%d, target=%d, masked=%d",
-                total_tokens, target_tokens, total_tokens - target_tokens)
-
+    if args.validate_batch:
+        validate_and_log_batch(trainer, tokenizer, config)
 
     # Check for resume
     resume_checkpoint = None
@@ -372,6 +329,19 @@ def main():
         trainer.save_metrics("train", metrics)
         trainer.save_state()
         trainer.save_model()
+
+        if profiling_config.enabled:
+            profiling_cb = next(
+                (c for c in callbacks if isinstance(c, ProfilingCallback)), None
+            )
+            if profiling_cb:
+                save_experiment_manifest(
+                    output_dir=training_config.output_dir,
+                    config=config,
+                    profiling_results=profiling_cb.get_results(),
+                    train_metrics=metrics,
+                )
+
         logger.info("Training completed successfully!")
 
     except KeyboardInterrupt:
