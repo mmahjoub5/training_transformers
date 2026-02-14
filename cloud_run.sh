@@ -53,6 +53,8 @@ FORCE_UPDATE="${FORCE_UPDATE:-false}"
 
 # Make conda available in this script
 source "$(conda info --base)/etc/profile.d/conda.sh"
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
 # Create env if it doesn't exist, or update if FORCE_UPDATE=true
 if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
