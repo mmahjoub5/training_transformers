@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from pathlib import Path
@@ -34,21 +35,26 @@ class ProfilingCallback(TrainerCallback):
         self._total_training_time_sec: Optional[float] = None
         self._profiler: Optional[torch.profiler.profile] = None
         self._cpu_step_start: Optional[float] = None
+        self._nvtx = config.enable_nvtx and torch.cuda.is_available()
+        logger.info("Initialized ProfilingCallback with config: %s", self.config.to_dict())
 
     def on_train_begin(self, args: TrainingArguments, state: TrainerState,
                        control: TrainerControl, **kwargs):
+        
+        logger.info("Training started with ProfilingCallback. Config: %s", self.config.to_dict())
         """Record start time, reset peak memory stats, optionally start torch.profiler."""
         self._train_start_time = time.perf_counter()
         reset_peak_stats()
+        if self._nvtx:
+            torch.cuda.nvtx.range_push("training")
         if self.config.enable_torch_profiler and self.config.trace_dir:
             trace_dir = Path(self.config.trace_dir)
             trace_dir.mkdir(parents=True, exist_ok=True)
 
-            def _trace_handler(prof):
-                """Export Chrome/Perfetto trace JSON (replaces deprecated TB handler)."""
-                out = trace_dir / "trace.json"
-                prof.export_chrome_trace(str(out))
-                logger.info("Saved profiler trace to %s (open in Perfetto UI or chrome://tracing)", out)
+            def _trace_handler(prof: torch.profiler.profile):
+                """Export profiler trace to TensorBoard (includes Chrome/Perfetto trace)."""
+                torch.profiler.tensorboard_trace_handler(str(trace_dir))(prof)
+                logger.info("Saved TensorBoard profiler trace to %s", trace_dir)
 
             self._profiler = torch.profiler.profile(
                 schedule=torch.profiler.schedule(
@@ -68,19 +74,24 @@ class ProfilingCallback(TrainerCallback):
 
     def on_step_begin(self, args: TrainingArguments, state: TrainerState,
                       control: TrainerControl, **kwargs):
-        """Start the CUDA timer for this step."""
+        """Start the CUDA timer and NVTX range for this step."""
+        if self._nvtx:
+            torch.cuda.nvtx.range_push(f"step_{state.global_step}")
         self._timer.cpu_start()
         self._timer.cuda_start()
 
     def on_step_end(self, args: TrainingArguments, state: TrainerState,
                     control: TrainerControl, **kwargs):
-        """Stop timer. Every log_every_n_steps: record timing + memory, compute throughput, log to TB."""
+        """Stop timer, close NVTX range. Every log_every_n_steps: record timing + memory, compute throughput, log to TB."""
+        if self._nvtx:
+            torch.cuda.nvtx.range_pop()
         self._timer.cuda_stop()
+        self._timer.cpu_stop()
         cuda_elapsed_ms = self._timer.cuda_elapsed_ms()
         wall_clock_ms = self._timer.cpu_elapsed_ms()
 
         step = state.global_step
-        if step % self.config.log_every_n_steps == 0:
+        if step % self.config.log_every_n_steps == 0 and cuda_elapsed_ms is not None:
             elapsed_sec = cuda_elapsed_ms / 1000.0
             samples_per_sec = (
                 args.per_device_train_batch_size / elapsed_sec if elapsed_sec > 0 else 0.0
@@ -128,14 +139,33 @@ class ProfilingCallback(TrainerCallback):
                 log_entry["perf/free_mb"] = mem.free_mb
             state.log_history.append(log_entry)
 
+        if step % self.config.save_every_n_steps == 0:
+            self._save_results()
+
         if self._profiler is not None:
             self._profiler.step()
 
+    def _save_results(self):
+        """Write current profiling data to disk."""
+        if not self.config.trace_dir:
+            return
+        out_dir = Path(self.config.trace_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_dir = out_dir / "profiling_results"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / "profiling_results.json"
+        out_path.write_text(json.dumps(self.get_results(), indent=2))
+        logger.info("Saved profiling results to %s (%d timings, %d memory snapshots)",
+                     out_path, len(self.step_timings), len(self.memory_snapshots))
+
     def on_train_end(self, args: TrainingArguments, state: TrainerState,
                      control: TrainerControl, **kwargs):
-        """Record total training time, close torch.profiler if active."""
+        """Record total training time, close NVTX range, close torch.profiler if active."""
+        if self._nvtx:
+            torch.cuda.nvtx.range_pop()
         if self._train_start_time is not None:
             self._total_training_time_sec = time.perf_counter() - self._train_start_time
+        self._save_results()
         if self._profiler is not None:
             self._profiler.stop()
             self._profiler = None
@@ -150,8 +180,7 @@ class ProfilingCallback(TrainerCallback):
             "memory_snapshots": [{"step": int, "allocated_mb": float, "peak_allocated_mb": float}, ...],
         }
         """
-        if self._profiler is not None:
-            self._profiler.export_chrome_trace(str(Path(self.config.trace_dir) / "final_trace.json"))
+
         return {
             "total_training_time_sec": self._total_training_time_sec,
             "step_timings": self.step_timings,

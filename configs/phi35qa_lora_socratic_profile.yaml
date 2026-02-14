@@ -38,7 +38,7 @@ training:
 
 logging:
   report_to: tensorboard
-  logging_dir: "./phi35/2-3/lr1e4/token4096/socratic/runs"
+  logging_dir: "./phi35/2-10/profile/runs"
   logging_steps: 10
   save_steps: 250
   level: info
@@ -51,3 +51,11 @@ lora:
   bias: none
   task_type: CAUSAL_LM
 
+profiling:
+  enabled: true
+  trace_dir: profile/212/smollm-135m/profile/
+  enable_torch_profiler: true
+  profiler_start_step: 10
+  profiler_end_step: 200
+  torch_profiler_active_steps: 2
+  save_every_n_steps: 30

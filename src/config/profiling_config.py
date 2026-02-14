@@ -11,10 +11,12 @@ class ProfilingConfig:
     enabled: bool = False
     log_every_n_steps: int = 10
     trace_dir: Optional[str] = None
-    enable_torch_profiler: bool = False
+    enable_torch_profiler: bool = True
     profiler_start_step: int = 20
     profiler_end_step: int = 40
     torch_profiler_active_steps: int = 10
+    save_every_n_steps: int = 100
+    enable_nvtx: bool = False
     activities: List[str] = field(default_factory=lambda: ["cpu", "cuda"])
 
     def __post_init__(self):
@@ -35,8 +37,9 @@ class ProfilingConfig:
             "profiler_start_step": self.profiler_start_step,
             "profiler_end_step": self.profiler_end_step,
             "torch_profiler_active_steps": self.torch_profiler_active_steps,
+            "save_every_n_steps": self.save_every_n_steps,
+            "enable_nvtx": self.enable_nvtx,
             "activities": self.activities,
-
         }
 
     @classmethod
@@ -52,6 +55,8 @@ class ProfilingConfig:
             profiler_start_step=prof_cfg.get("profiler_start_step", 20),
             profiler_end_step=prof_cfg.get("profiler_end_step", 40),
             torch_profiler_active_steps=prof_cfg.get("torch_profiler_active_steps", 10),
+            save_every_n_steps=prof_cfg.get("save_every_n_steps", 100),
+            enable_nvtx=prof_cfg.get("enable_nvtx", False),
             activities=prof_cfg.get("activities", ["cpu", "cuda"]),
         )
 
