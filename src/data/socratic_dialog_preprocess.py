@@ -6,14 +6,13 @@ Class for preprocessing custom socratic dialogue dataset created by myself
 
 
 class SocraticPreprocessor:
-    def __init__(self, tokenizer, max_length=512,**tokenizer_kwargs):
+    def __init__(self, tokenizer, max_length=512, **tokenizer_kwargs):
         self.tokenizer = tokenizer
         self.max_length = max_length
         # For many decoder-only models, pad_token may be None; EOS-as-pad is common.
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer_kwargs = tokenizer_kwargs
-        self.messages = []
 
     def _fallback_chat_format(self, messages):
         # Simple, consistent format when tokenizer lacks a chat template.
@@ -40,34 +39,23 @@ class SocraticPreprocessor:
             system_prompt = f"{base}\nProvide clear, direct answers with examples when helpful."
 
         return system_prompt
+
     def __call__(self, examples):
-        self.messages = []
-        self.messages.append({
+        messages = []
+        messages.append({
             "role": "system",
             "content": self.policy_system_prompt_generator(examples["policy"])
         })
         for turn in examples["turns"]:
             if turn["role"] == "junior_engineer":
-                self.messages.append({
+                messages.append({
                     "role": "user",
                     "content": turn["content"]
                 })
             elif turn["role"] == "senior_engineer":
-                self.messages.append({
+                messages.append({
                     "role": "assistant",
-                    "content": turn['content']
+                    "content": turn["content"]
                 })
 
-        # if getattr(self.tokenizer, "chat_template", None):
-        #     print(self.messages)
-        #     text = self.tokenizer.apply_chat_template(
-        #         self.messages,
-        #         tokenize=False,
-        #         add_generation_prompt=False,
-        #     )
-
-        # else:
-        #     #print("we are here ")
-        #     text = self._fallback_chat_format(self.messages)
-
-        return {"messages": self.messages}
+        return {"messages": messages}
