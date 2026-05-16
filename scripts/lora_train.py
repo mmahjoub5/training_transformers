@@ -7,6 +7,7 @@ import torch
 from peft import LoraConfig
 from trl import SFTTrainer
 
+from src.config.data_config import DataConfig
 from src.config.deepspeed_config import DeepSpeedConfig
 from src.config.logging_config import LoggingConfig
 from src.config.lora_config import LoraConfigSpec
@@ -167,6 +168,7 @@ def main():
     config = load_config(args.config)
     model_config = ModelConfig.from_dict(config)
     training_config = TrainingConfig.from_dict(config)
+    data_config = DataConfig.from_dict(config)
     logging_config = LoggingConfig.from_dict(config)
     lora_config = LoraConfigSpec.from_dict(config) if config.get("lora") is not None else None
     deepspeed_config = DeepSpeedConfig.from_dict(config)
@@ -239,18 +241,18 @@ def main():
             model.config.use_cache = False
 
     # Initialize Preprocessor
-    cls = PREPROCESSOR_REGISTRY[config["data"]["preprocessor"]]
-    preprocessor = cls(tokenizer,
-                        max_length=config["tokenizer"]["max_length"],
-                        truncation=True
-                    )
 
-    raw_ds = load_dataset_generic(config["data"])
-    raw_ds = raw_ds["train"].train_test_split(test_size=0.2, seed=config["data"].get("seed", 42))
+    cls = PREPROCESSOR_REGISTRY[data_config.preprocessor]
+    preprocessor = cls(tokenizer,
+                       max_length=config["tokenizer"]["max_length"],
+                       truncation=True)
+
+    raw_ds = load_dataset_generic(data_config)
+    raw_ds = raw_ds["train"].train_test_split(test_size=0.2, seed=data_config.seed)
     logger.info(f"Raw dataset splits: {raw_ds}")
     logger.info(f"Raw dataset example: {raw_ds['train'][0]}")
-
-    if config["data"]["preprocessor"] == "ELI5Preprocessor_QA":
+    
+    if data_config.preprocessor == "ELI5Preprocessor_QA":
         raw_ds = raw_ds.flatten()
     processed_data = raw_ds.map(
         preprocessor,
