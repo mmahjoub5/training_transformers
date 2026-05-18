@@ -1,9 +1,8 @@
 # src/models/model_loader.py
 from __future__ import annotations
 
-
 import logging
-from typing import Literal, Tuple, Optional
+from typing import Literal, Optional, Tuple
 
 import torch
 from transformers import (
