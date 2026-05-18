@@ -2,8 +2,9 @@ import argparse
 import json
 
 import torch
-from metrics_eval.evaluator import EvalConfig, GenerationConfig, run_eval
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from metrics_eval.evaluator import EvalConfig, GenerationConfig, run_eval
 
 
 def parse_args() -> argparse.Namespace:

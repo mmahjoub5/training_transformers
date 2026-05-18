@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import torch
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
+
 from metrics_eval.heuristics import (
     avg_interrogative_ratio,
     avg_questions_per_response,
@@ -14,7 +16,6 @@ from metrics_eval.heuristics import (
     is_withhold_violation,
     question_rate,
 )
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 SYSTEM_PROMPT = (
     "You are a senior hardware engineer. Teach using Socratic questions. "
