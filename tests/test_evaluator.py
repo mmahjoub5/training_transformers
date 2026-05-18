@@ -4,7 +4,7 @@ import pytest
 
 pytest.importorskip("transformers", reason="transformers not installed in this environment")
 
-from metrics_eval.evaluator import compute_metrics
+from metrics_eval.evaluator import compute_metrics  # noqa: E402
 
 
 class _WhitespaceTokenizer:
