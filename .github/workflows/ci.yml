@@ -10,8 +10,12 @@ jobs:
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -20,7 +24,20 @@ jobs:
       - name: Install ruff
         run: pip install ruff==0.4.10
 
-      - name: Run ruff
+      - name: Auto-fix with ruff
+        run: ruff check --fix --unsafe-fixes .
+
+      - name: Commit ruff fixes if any
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (git add -u && git commit -m "style: auto-fix ruff lint violations")
+
+      - name: Push fixes
+        run: git push
+        if: ${{ github.event_name == 'pull_request' }}
+
+      - name: Fail if unfixable violations remain
         run: ruff check .
 
   test:
