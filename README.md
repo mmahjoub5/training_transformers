@@ -1,5 +1,7 @@
 # Training Transformers — Hardware-Aware Performance Analysis for LoRA Fine-Tuning
 
+[![CI](https://github.com/mmahjoub5/training_transformers/actions/workflows/ci.yml/badge.svg)](https://github.com/mmahjoub5/training_transformers/actions/workflows/ci.yml)
+
 A systems-focused project for measuring and optimizing the performance of LoRA-based LLM fine-tuning on cloud GPUs. Built on top of a Socratic teaching pipeline (Phi-3.5 + SFTTrainer + PEFT), the focus is on **performance instrumentation** — GPU profiling, memory analysis, DeepSpeed integration, and systematic benchmarking — not model accuracy.
 
 ## Project Structure

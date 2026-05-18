@@ -1,6 +1,9 @@
 import time
-import torch
 import warnings
+
+import torch
+
+
 class CudaTimer:
     def __init__(self, enabled: bool = True):
         self.enabled = enabled and torch.cuda.is_available()
@@ -19,7 +22,7 @@ class CudaTimer:
             self._start_event.record()
         else:
             warnings.warn("CUDA not available, CudaTimer will use CPU time. Timer is not active")
-            
+
     def cuda_stop(self):
         if self.enabled:
             self._end_event.record()
@@ -28,17 +31,17 @@ class CudaTimer:
 
     def cpu_start(self):
         self._cpu_t0 = time.perf_counter()
-        
-    
+
+
     def cpu_stop(self):
         self._cpu_t1 = time.perf_counter()
-        
+
 
     def cpu_elapsed_ms(self) -> float:
         if self._cpu_t0 is None or self._cpu_t1 is None:
             raise ValueError("CPU timer was not properly started and stopped.")
         return (self._cpu_t1 - self._cpu_t0) * 1000.0
-    
+
     def cuda_elapsed_ms(self) -> float:
         if self.enabled:
             # only sync when you actually need the number

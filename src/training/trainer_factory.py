@@ -1,10 +1,10 @@
 from transformers import EarlyStoppingCallback
 from trl import SFTConfig
 
-from src.config.training_config import TrainingConfig
-from src.config.logging_config import LoggingConfig
 from src.config.deepspeed_config import DeepSpeedConfig
+from src.config.logging_config import LoggingConfig
 from src.config.profiling_config import ProfilingConfig
+from src.config.training_config import TrainingConfig
 from src.profiling.callback import ProfilingCallback
 
 
@@ -67,7 +67,7 @@ def build_training_args(
         max_length=config["tokenizer"]["max_length"],
         dataset_text_field="messages",
         packing=False,
-        assistant_only_loss=True,
+        assistant_only_loss=training_config.assistant_only_loss,
 
         deepspeed=deepspeed_config.resolve_config_path(),
     )

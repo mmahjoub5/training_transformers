@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 
 @dataclass
 class ModelConfig:
@@ -11,6 +12,7 @@ class ModelConfig:
     device_map: Optional[str] = None
     kind: str = "clm"
     attn_implementation: str = "sdpa"
+    custom_template: bool = False
 
     @classmethod
     def from_dict(cls, cfg: Dict[str, Any], *, precision: Optional[str] = None) -> "ModelConfig":
@@ -23,4 +25,5 @@ class ModelConfig:
             device_map=model_cfg.get("device_map"),
             kind=model_cfg.get("kind", "clm"),
             attn_implementation=model_cfg.get("attn_implementation", "sdpa"),
+            custom_template=model_cfg.get("custom_template", False),
         )

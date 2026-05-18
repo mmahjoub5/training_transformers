@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional
 import torch
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 
-from src.profiling.timer import CudaTimer
-from src.profiling.memory import MemorySnapshot, take_memory_snapshot, reset_peak_stats
 from src.config.profiling_config import ProfilingConfig
+from src.profiling.memory import reset_peak_stats, take_memory_snapshot
+from src.profiling.timer import CudaTimer
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class ProfilingCallback(TrainerCallback):
 
     def on_train_begin(self, args: TrainingArguments, state: TrainerState,
                        control: TrainerControl, **kwargs):
-        
+
         logger.info("Training started with ProfilingCallback. Config: %s", self.config.to_dict())
         """Record start time, reset peak memory stats, optionally start torch.profiler."""
         self._train_start_time = time.perf_counter()

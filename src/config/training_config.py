@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass
@@ -27,6 +27,7 @@ class TrainingConfig:
     early_stopping_patience: int | None = None
     metric_for_best_model: str = "eval_loss"
     greater_is_better: bool = False
+    assistant_only_loss: bool = True
 
     @classmethod
     def from_dict(cls, cfg: Dict[str, Any]) -> "TrainingConfig":
@@ -55,4 +56,5 @@ class TrainingConfig:
             early_stopping_patience=training_cfg.get("early_stopping_patience", None),
             metric_for_best_model=training_cfg.get("metric_for_best_model", "eval_loss"),
             greater_is_better=training_cfg.get("greater_is_better", False),
+            assistant_only_loss=training_cfg.get("assistant_only_loss", True),
         )

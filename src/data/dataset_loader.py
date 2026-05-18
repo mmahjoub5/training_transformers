@@ -1,11 +1,9 @@
 # src/data/dataset_loader.py
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Dict
 
-from datasets import load_dataset, Dataset, DatasetDict
-
+from datasets import Dataset, DatasetDict, load_dataset
 
 
 def load_dataset_generic(cfg: dict) -> DatasetDict:

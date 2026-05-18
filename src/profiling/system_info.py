@@ -2,8 +2,8 @@ import platform
 import socket
 import subprocess
 import sys
-from dataclasses import dataclass, field, asdict
-from typing import Optional, List, Dict, Any
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
 import torch
 

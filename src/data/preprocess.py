@@ -1,15 +1,15 @@
 def extract_start_end_positions(tokenizer, enc, offsets, data_item, context_start=0, context_end=None):
     """Extract token positions using official HuggingFace approach."""
-    
+
     start_char = data_item["answers"]["answer_start"][0]
     end_char = start_char + len(data_item["answers"]["text"][0])
-    
+
     # Start position: find first token where offset[0] > start_char, then go back one
     token_start_index = context_start
     while token_start_index < len(offsets) and offsets[token_start_index][0] <= start_char:
         token_start_index += 1
     token_start = token_start_index - 1
-    
+
     # End position: find first token where offset[1] >= end_char
     token_end_index = context_start
     while token_end_index <= context_end and offsets[token_end_index][1] < end_char:
@@ -18,12 +18,12 @@ def extract_start_end_positions(tokenizer, enc, offsets, data_item, context_star
 
     # CRITICAL: Check if answer is actually within the token span
     # If start/end fall outside the found tokens, the answer was truncated
-    if (token_start < context_start or token_end > context_end or 
-        offsets[token_start][0] > start_char or 
+    if (token_start < context_start or token_end > context_end or
+        offsets[token_start][0] > start_char or
         offsets[token_end][1] < end_char):
         # Answer doesn't align with tokens - return CLS (will be handled by caller)
         return -1, -1
-    
+
     return token_start, token_end
 
 
@@ -104,5 +104,5 @@ def preprocess_dataset(raw_ds, tokenizer, max_length):
         processed[split_name] = processed_items
 
     return processed
-      
+
 

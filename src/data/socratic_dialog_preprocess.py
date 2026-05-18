@@ -23,22 +23,22 @@ class SocraticPreprocessor:
             content = msg.get("content", "")
             rendered.append(f"{role.upper()}:\n{content}")
         return "\n\n".join(rendered).strip()
-    
+
     def policy_system_prompt_generator(self, policy):
         base = "You are a senior engineer who teaches by asking guided questions. The Hint level hint_level: \n 1 = Socratic clarification \n 2 = Physical intuition \n 3 = System-level reasoning \n"
-        
+
         policies = []
         if policy["withhold_final_answer"]:
             policies.append("withhold the final answer")
         if policy["avoid_numeric_rules_of_thumb"]:
             policies.append("avoid numeric rules of thumb")
-        
+
         if policies:
             policy_text = " and ".join(policies)
             system_prompt = f"{base}\nYour policy that you must follow under all circumstances is to {policy_text}."
         else:
             system_prompt = f"{base}\nProvide clear, direct answers with examples when helpful."
-    
+
         return system_prompt
     def __call__(self, examples):
         self.messages = []
@@ -65,7 +65,7 @@ class SocraticPreprocessor:
         #         tokenize=False,
         #         add_generation_prompt=False,
         #     )
-           
+
         # else:
         #     #print("we are here ")
         #     text = self._fallback_chat_format(self.messages)

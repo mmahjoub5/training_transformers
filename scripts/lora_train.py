@@ -1,30 +1,25 @@
-import torch
-import sys
-import os
+import argparse
 import logging
+import sys
 from pathlib import Path
 
-from src.models.model_loader import load_model, quick_info
-from src.core.config import load_config
-from src.data.dataset_loader import load_dataset_generic
-from src.data.preprocess import preprocess_dataset
-from src.config.model_config import ModelConfig
-from src.config.training_config import TrainingConfig
-from src.config.lora_config import LoraConfigSpec
-from src.config.logging_config import LoggingConfig
-from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
-from src.metrics.compute_metrics import BehaviorMetricsComputer
-from src.data.eli_preprocess import ELI5Preprocessor_QA
-from src.data.data_utils import PREPROCESSOR_REGISTRY
-import argparse
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from trl import SFTTrainer, SFTConfig
-from metrics_eval.callback import MetricsEvalCallback
-from src.config.profiling_config import ProfilingConfig
+import torch
+from peft import LoraConfig
+from trl import SFTTrainer
+
 from src.config.deepspeed_config import DeepSpeedConfig
-from src.training.trainer_factory import build_training_args, build_callbacks
-from src.utils.experiment import save_experiment_manifest
+from src.config.logging_config import LoggingConfig
+from src.config.lora_config import LoraConfigSpec
+from src.config.model_config import ModelConfig
+from src.config.profiling_config import ProfilingConfig
+from src.config.training_config import TrainingConfig
+from src.core.config import load_config
+from src.data.data_utils import PREPROCESSOR_REGISTRY
+from src.data.dataset_loader import load_dataset_generic
+from src.models.model_loader import load_model
 from src.profiling.callback import ProfilingCallback
+from src.training.trainer_factory import build_callbacks, build_training_args
+from src.utils.experiment import save_experiment_manifest
 
 # Setup logging
 logging.basicConfig(
@@ -32,7 +27,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
-# arg parse for input config 
+# arg parse for input config
 
 parser = argparse.ArgumentParser(
         description="Train QA model with YAML config"
@@ -207,7 +202,8 @@ def main():
         kind=model_config.kind,
         precision=precision,
         attn_implementation=model_config.attn_implementation,
-        device_map = "auto"
+        custom_template=model_config.custom_template,
+        device_map="auto",
     )
     print("++++++++++++++++++++++++++++++++++++++++++")
     print(tokenizer.model_max_length)
@@ -248,16 +244,16 @@ def main():
 
     # Initialize Preprocessor
     cls = PREPROCESSOR_REGISTRY[config["data"]["preprocessor"]]
-    preprocessor = cls(tokenizer, 
+    preprocessor = cls(tokenizer,
                         max_length=config["tokenizer"]["max_length"],
                         truncation=True
                     )
-    
+
     raw_ds = load_dataset_generic(config["data"])
     raw_ds = raw_ds["train"].train_test_split(test_size=0.2, seed=config["data"].get("seed", 42))
     logger.info(f"Raw dataset splits: {raw_ds}")
     logger.info(f"Raw dataset example: {raw_ds['train'][0]}")
-    
+
     if config["data"]["preprocessor"] == "ELI5Preprocessor_QA":
         raw_ds = raw_ds.flatten()
     processed_data = raw_ds.map(
@@ -288,8 +284,8 @@ def main():
         training_config, logging_config, deepspeed_config,
         config, use_cuda, use_fp16, use_bf16
     )
-    
-  
+
+
     callbacks = build_callbacks(training_config, profiling_config)
 
     trainer = SFTTrainer(

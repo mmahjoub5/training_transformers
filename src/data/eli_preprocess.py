@@ -29,7 +29,7 @@ class ELI5Preprocessor_CLM:
                 for i in range(0, total_length, self.block_size)
             ],
         }
-      
+
 
         # Split by chunks of block_size.
         result["labels"] = result["input_ids"].copy()
@@ -37,7 +37,7 @@ class ELI5Preprocessor_CLM:
         return result
 
 """
-Class for preprocessing ELI5 dataset for QA tasks. 
+Class for preprocessing ELI5 dataset for QA tasks.
 
 Adds -100 on label for question tokens. so the loss is only computed on answer tokens.
 
@@ -67,7 +67,7 @@ class ELI5Preprocessor_QA:
         answer_token = self.tokenizer(a_text, add_special_tokens=False, max_length=self.max_length, **self.tokenizer_kwargs )
         question_token = self.tokenizer(q_text, add_special_tokens=False,  max_length=self.max_length, **self.tokenizer_kwargs)
         input_ids = question_token["input_ids"] + answer_token["input_ids"]
-        
+
         # Split by chunks of block_size.
         labels =  [-100] * len(question_token["input_ids"]) + answer_token["input_ids"]
         # Truncate

@@ -1,13 +1,13 @@
 # src/models/model_loader.py
 from __future__ import annotations
 
-from typing import Literal, Tuple, Optional
+from typing import Literal, Optional, Tuple
 
 import torch
 from transformers import (
-    AutoTokenizer,
-    AutoModelForQuestionAnswering,
     AutoModelForCausalLM,
+    AutoModelForQuestionAnswering,
+    AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -21,6 +21,7 @@ def load_model(
     adapter: Optional[str] = None,
     precision: Literal["fp32", "fp16", "bf16"] = "fp32",
     trust_remote_code: bool = False,
+    custom_template: bool = False,
     **args,
 ) -> Tuple[PreTrainedTokenizerBase, PreTrainedModel]:
     """
@@ -42,25 +43,19 @@ def load_model(
         "fp16": torch.float16,
         "bf16": torch.bfloat16,
     }[precision]
-    
+
     if adapter is not None:
         tokenizer = AutoTokenizer.from_pretrained(adapter, use_fast=True)
 
     else:
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
-    
-    role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
-    if adapter is  None:
-        tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
-   
 
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
-    print(tokenizer.all_special_tokens)
-    print(tokenizer.special_tokens_map)
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
-    # Always use custom chat template with {% generation %} tags for assistant_only_loss
-    # EOS must be INSIDE {% generation %} tags so model learns to produce it
-    tokenizer.chat_template = r"""
+    if custom_template and adapter is None:
+        role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
+        tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
+        # Custom template uses {% generation %} tags so assistant_only_loss masks correctly.
+        # EOS must be INSIDE {% generation %} so the model learns to produce it.
+        tokenizer.chat_template = r"""
     {% for message in messages %}
     {% if message['role'] == 'system' -%}
     <|system|>
