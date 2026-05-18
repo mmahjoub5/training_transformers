@@ -8,6 +8,7 @@ from peft import LoraConfig
 from trl import SFTTrainer
 
 from src.config.deepspeed_config import DeepSpeedConfig
+from src.config.tokenizer_config import TokenizerConfig
 from src.config.logging_config import LoggingConfig
 from src.config.lora_config import LoraConfigSpec
 from src.config.model_config import ModelConfig
@@ -168,6 +169,7 @@ def main():
     model_config = ModelConfig.from_dict(config)
     training_config = TrainingConfig.from_dict(config)
     logging_config = LoggingConfig.from_dict(config)
+    tokenizer_config = TokenizerConfig.from_dict(config)
     lora_config = LoraConfigSpec.from_dict(config) if config.get("lora") is not None else None
     deepspeed_config = DeepSpeedConfig.from_dict(config)
     profiling_config = ProfilingConfig.from_dict(config)
@@ -278,7 +280,7 @@ def main():
 
     training_args = build_training_args(
         training_config, logging_config, deepspeed_config,
-        config, use_cuda, use_fp16, use_bf16
+        tokenizer_config, use_cuda, use_fp16, use_bf16
     )
 
 

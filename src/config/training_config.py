@@ -28,12 +28,16 @@ class TrainingConfig:
     metric_for_best_model: str = "eval_loss"
     greater_is_better: bool = False
     assistant_only_loss: bool = True
+    seed: int = 42
 
     @classmethod
     def from_dict(cls, cfg: Dict[str, Any]) -> "TrainingConfig":
         training_cfg = cfg.get("training", {})
         if training_cfg.get("eval_strategy", "epoch") is False:
             training_cfg["eval_strategy"] = "no"
+        # Seed historically lived under data.seed; fall back to training.seed then 42.
+        data_cfg = cfg.get("data", {}) or {}
+        seed = training_cfg.get("seed", data_cfg.get("seed", 42))
         return cls(
             batch_size=training_cfg["batch_size"],
             lr=float(training_cfg["lr"]),
@@ -57,4 +61,5 @@ class TrainingConfig:
             metric_for_best_model=training_cfg.get("metric_for_best_model", "eval_loss"),
             greater_is_better=training_cfg.get("greater_is_better", False),
             assistant_only_loss=training_cfg.get("assistant_only_loss", True),
+            seed=seed,
         )
