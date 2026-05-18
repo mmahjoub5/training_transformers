@@ -11,7 +11,6 @@ from metrics_eval.heuristics import (
     avg_interrogative_ratio,
     avg_questions_per_response,
     contains_imperative,
-    count_questions,
     count_step_lines,
     is_numeric_violation,
     is_withhold_violation,

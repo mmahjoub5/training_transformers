@@ -1,10 +1,11 @@
 import random
 from typing import Any, Dict, List, Optional, Sequence
 
+import torch
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 
 from metrics_eval.evaluator import EvalConfig, GenerationConfig, _load_json_or_jsonl, evaluate
-import torch
+
 
 class MetricsEvalCallback(TrainerCallback):
     def __init__(
@@ -114,10 +115,10 @@ class MetricsEvalCallback(TrainerCallback):
         # on_log will receive these metrics, and they go to wandb/tensorboard/etc.
         self._pending_logs = {f"custom/{k}": v for k, v in metrics.items()}
         control.should_log = True
-        
-        
+
+
         self._pending_logs = {f"custom/{k}": v for k, v in metrics.items()}
-        
+
         # also print if you want:
         print(f"[custom-eval step={step}] {metrics}")
 
