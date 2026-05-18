@@ -16,19 +16,12 @@ from metrics_eval.heuristics import (
     is_withhold_violation,
     question_rate,
 )
+from src.config.generation_config import GenerationConfig
 
 SYSTEM_PROMPT = (
     "You are a senior hardware engineer. Teach using Socratic questions. "
     "Do not reveal the final answer. Avoid numeric rules-of-thumb."
 )
-
-
-@dataclass
-class GenerationConfig:
-    max_new_tokens: int = 200
-    temperature: float = 0.2
-    top_p: float = 1.0
-    do_sample: Optional[bool] = None
 
 
 @dataclass
