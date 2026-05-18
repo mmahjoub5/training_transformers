@@ -1,6 +1,5 @@
 """Tests for data preprocessors."""
 
-import pytest
 from unittest.mock import MagicMock
 
 from src.data.socratic_dialog_preprocess import SocraticPreprocessor
