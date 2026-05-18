@@ -4,7 +4,7 @@ import json
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from metrics_eval.evaluator import EvalConfig, GenerationConfig, run_eval
+from src.metrics_eval.evaluator import EvalConfig, GenerationConfig, run_eval
 
 
 def parse_args() -> argparse.Namespace:

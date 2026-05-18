@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import torch
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
-from metrics_eval.heuristics import (
+from src.metrics_eval.heuristics import (
     avg_interrogative_ratio,
     avg_questions_per_response,
     contains_imperative,

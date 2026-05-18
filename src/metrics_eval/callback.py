@@ -4,8 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import torch
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 
-from metrics_eval.evaluator import EvalConfig, GenerationConfig, _load_json_or_jsonl, evaluate
-
+from src.metrics_eval.evaluator import EvalConfig, GenerationConfig, _load_json_or_jsonl, evaluate
 
 class MetricsEvalCallback(TrainerCallback):
     def __init__(
