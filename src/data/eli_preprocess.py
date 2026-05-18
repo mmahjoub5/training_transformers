@@ -55,41 +55,14 @@ class ELI5Preprocessor_QA:
     def __call__(self, examples):
         q_text = f"Question: {examples['title']}\nAnswer:"
         a_text = examples["answers.text"][0]
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("q_text", q_text)
-        print()
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("a_text", a_text)
-        print()
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        answer_token = self.tokenizer(a_text, add_special_tokens=False, max_length=self.max_length, **self.tokenizer_kwargs )
-        question_token = self.tokenizer(q_text, add_special_tokens=False,  max_length=self.max_length, **self.tokenizer_kwargs)
+        answer_token = self.tokenizer(a_text, add_special_tokens=False, max_length=self.max_length, **self.tokenizer_kwargs)
+        question_token = self.tokenizer(q_text, add_special_tokens=False, max_length=self.max_length, **self.tokenizer_kwargs)
         input_ids = question_token["input_ids"] + answer_token["input_ids"]
 
-        # Split by chunks of block_size.
-        labels =  [-100] * len(question_token["input_ids"]) + answer_token["input_ids"]
-        # Truncate
+        labels = [-100] * len(question_token["input_ids"]) + answer_token["input_ids"]
         input_ids = input_ids[: self.max_length]
         labels = labels[: self.max_length]
         attention_mask = [1] * len(input_ids)
-        answer_labels = [token_id for token_id in labels if token_id != -100]
-        decoded = self.tokenizer.decode(
-            answer_labels,
-            skip_special_tokens=False  # keep special tokens so you can see padding/EOS
-        )
-        q_decoded = self.tokenizer.decode(
-            input_ids[:len(question_token["input_ids"])],
-            skip_special_tokens=False  # keep special tokens so you can see padding/EOS
-        )
-
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("q decoded", q_decoded)
-        print("decoded", decoded)
-        print()
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
 
         # Pad
         pad_len = self.max_length - len(input_ids)
