@@ -82,3 +82,48 @@ class TestSocraticPreprocessor:
         assert not hasattr(preprocessor, "messages")
         preprocessor(_make_example())
         assert not hasattr(preprocessor, "messages")
+
+
+"""Tests for data preprocessing classes."""
+
+from src.data.eli_preprocess import ELI5Preprocessor_CLM
+
+
+class FakeTokenizer:
+    """Minimal tokenizer that returns deterministic token ids based on text length."""
+
+    def __init__(self, tokens_per_call=10):
+        self.tokens_per_call = tokens_per_call
+
+    def __call__(self, text):
+        n = max(1, len(text.split()))
+        return {"input_ids": list(range(n))}
+
+
+class TestELI5PreprocessorCLM:
+    def test_short_sequence_returns_empty_lists_without_crash(self, caplog):
+        tokenizer = FakeTokenizer()
+        preprocessor = ELI5Preprocessor_CLM(tokenizer)
+        preprocessor.block_size = 512
+
+        example = {"title": "short title", "answers.text": ["short answer"]}
+        with caplog.at_level("WARNING"):
+            result = preprocessor(example)
+
+        assert result == {"input_ids": [], "attention_mask": [], "labels": []}
+        assert any("Skipping example" in rec.message for rec in caplog.records)
+
+    def test_long_sequence_chunks_into_block_size(self):
+        tokenizer = FakeTokenizer()
+        preprocessor = ELI5Preprocessor_CLM(tokenizer)
+        preprocessor.block_size = 4
+
+        long_text = " ".join(["word"] * 20)
+        example = {"title": long_text, "answers.text": [long_text]}
+        result = preprocessor(example)
+
+        assert len(result["input_ids"]) >= 1
+        for chunk in result["input_ids"]:
+            assert len(chunk) == preprocessor.block_size
+        assert result["labels"] == result["input_ids"]
+        assert len(result["attention_mask"]) == len(result["input_ids"])
