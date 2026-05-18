@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+pytest.importorskip("datasets", reason="datasets not installed in this environment")
+
 from src.data.dataset_loader import load_dataset_generic
 
 

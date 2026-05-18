@@ -1,5 +1,9 @@
 """Unit tests for metrics_eval.evaluator.compute_metrics (issue #21)."""
 
+import pytest
+
+pytest.importorskip("transformers", reason="transformers not installed in this environment")
+
 from metrics_eval.evaluator import compute_metrics
 
 
