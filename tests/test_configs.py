@@ -1,9 +1,12 @@
-"""Tests for YAML config loading and schema validation (issue #17)."""
+"""Tests for YAML config loading, schema validation, and config dataclass parsing."""
 
 import textwrap
 
 import pytest
 
+from src.config.data_config import DataConfig
+from src.config.deepspeed_config import DeepSpeedConfig
+from src.config.profiling_config import ProfilingConfig
 from src.core.config import ConfigValidationError, load_config, validate_config
 
 
@@ -52,15 +55,6 @@ def test_load_config_calls_validation(tmp_path):
     """)
     with pytest.raises(ConfigValidationError, match="training"):
         load_config(path)
-
-
-"""Tests for config dataclass parsing."""
-
-import pytest
-
-from src.config.profiling_config import ProfilingConfig
-from src.config.deepspeed_config import DeepSpeedConfig
-from src.config.data_config import DataConfig
 
 
 class TestDataConfig:
