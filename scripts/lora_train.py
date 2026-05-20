@@ -251,7 +251,7 @@ def main():
     raw_ds = raw_ds["train"].train_test_split(test_size=0.2, seed=data_config.seed)
     logger.info(f"Raw dataset splits: {raw_ds}")
     logger.info(f"Raw dataset example: {raw_ds['train'][0]}")
-    
+
     if data_config.preprocessor == "ELI5Preprocessor_QA":
         raw_ds = raw_ds.flatten()
     processed_data = raw_ds.map(

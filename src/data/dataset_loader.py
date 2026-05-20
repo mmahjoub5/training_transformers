@@ -3,12 +3,10 @@ from __future__ import annotations
 
 from typing import Dict
 
-
 from datasets import Dataset, DatasetDict, load_dataset
 
 from src.config.data_config import DataConfig
 
-from datasets import Dataset, DatasetDict, load_dataset
 
 def load_dataset_generic(cfg: DataConfig) -> DatasetDict:
     """
