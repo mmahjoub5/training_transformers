@@ -4,6 +4,7 @@ from trl import SFTConfig
 from src.config.deepspeed_config import DeepSpeedConfig
 from src.config.logging_config import LoggingConfig
 from src.config.profiling_config import ProfilingConfig
+from src.config.tokenizer_config import TokenizerConfig
 from src.config.training_config import TrainingConfig
 from src.profiling.callback import ProfilingCallback
 
@@ -12,7 +13,7 @@ def build_training_args(
     training_config: TrainingConfig,
     logging_config: LoggingConfig,
     deepspeed_config: DeepSpeedConfig,
-    config: dict,
+    tokenizer_config: TokenizerConfig,
     use_cuda: bool,
     use_fp16: bool,
     use_bf16: bool,
@@ -59,12 +60,12 @@ def build_training_args(
         max_grad_norm=training_config.max_grad_norm,
         warmup_ratio=training_config.warmup_ratio,
         lr_scheduler_type=training_config.lr_scheduler_type,
-        seed=config["data"].get("seed", 42),
+        seed=training_config.seed,
 
         # If you later go multi-GPU with torchrun/DDP
         ddp_find_unused_parameters=False,
 
-        max_length=config["tokenizer"]["max_length"],
+        max_length=tokenizer_config.max_length,
         dataset_text_field="messages",
         packing=False,
         assistant_only_loss=training_config.assistant_only_loss,
