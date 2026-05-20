@@ -115,3 +115,41 @@ python scripts/eval_metrics.py --model_path <model> --eval_json <path> --batch_s
 ```bash
 pytest tests/
 ```
+
+## Config File Schema
+
+YAML configs in `configs/` are parsed into typed dataclasses. The top-level sections (required unless noted):
+
+| Section      | Purpose                                                       | Loaded into                       |
+| ------------ | ------------------------------------------------------------- | --------------------------------- |
+| `model`      | Model name, kind (`qa`/`clm`), adapter, attention impl        | `ModelConfig`                     |
+| `data`       | Dataset name/file, preprocessor name, split/sample limits     | `DataConfig`                      |
+| `tokenizer`  | `max_length`                                                  | `TokenizerConfig`                 |
+| `training`   | Batch size, LR, epochs, precision, eval/save strategy         | `TrainingConfig`                  |
+| `lora`       | (optional) LoRA rank, alpha, dropout, target_modules          | `LoraConfigSpec`                  |
+| `logging`    | (optional) Tensorboard, save_steps, logging_steps             | `LoggingConfig`                   |
+| `deepspeed`  | (optional) Enable + ZeRO stage                                | `DeepSpeedConfig`                 |
+| `profiling`  | (optional) Enable + torch.profiler + log frequency            | `ProfilingConfig`                 |
+
+## Adding a New Preprocessor
+
+Preprocessors transform raw dataset rows into `{"messages": [...]}` for SFTTrainer.
+
+1. Create a class in `src/data/` that implements `__call__(self, example: dict) -> dict`.
+2. Make sure it satisfies the `BasePreprocessor` Protocol from `src/data/base_preprocessor.py` (any class with the right `__call__` signature does, automatically).
+3. Register it in `PREPROCESSOR_REGISTRY` in `src/data/data_utils.py`.
+4. Reference it by name in your YAML config: `data.preprocessor: YourPreprocessor`.
+
+## Adding a New Behavior Metric
+
+Behavior heuristics live in `src/metrics_eval/heuristics.py` and are aggregated in `compute_metrics()`.
+
+1. Add a heuristic function in `src/metrics_eval/heuristics.py` (e.g. `is_my_violation(text: str) -> bool`).
+2. Wire it into `compute_metrics()` in `src/metrics_eval/evaluator.py` to emit a new metric key.
+3. Add unit tests for the heuristic in `tests/test_heuristics.py`.
+4. The new metric is automatically picked up by `MetricsEvalCallback` and logged as `custom/<name>`.
+
+## What This Project Does (Plain English)
+
+A framework for fine-tuning small/medium LLMs (Phi-2, Phi-3.5, SmolLM-135M) on hardware-engineering Socratic-dialogue data. Optimized for cloud GPU experiments: built-in profiling, DeepSpeed support, and behavior-focused (not just loss-focused) evaluation metrics.
+

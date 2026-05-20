@@ -1,0 +1,47 @@
+model:
+  name: HuggingFaceTB/SmolLM-135M
+  kind: clm
+  custom_template: true
+
+data:
+  name: json
+  data_file: data/custom_dataset/final_data.json
+  split: null
+  config_name: null
+  train_split: train
+  val_split: validation
+  test_split: null
+  max_train_samples: 100
+  max_val_samples: null #val is 0.2 of max train
+  shuffle_train: true
+  seed: 42
+  preprocessor: SocraticPreprocessor
+
+tokenizer:
+  max_length: 256
+
+training:
+  batch_size: 1
+  lr: 3e-5
+  epochs: 10
+  output_dir: output/1229/smollm-135m/
+  weight_decay: 0.01
+  eval_steps: 2
+  gradient_accumulation_steps: 4
+  eval_strategy: steps
+
+logging:
+  report_to: tensorboard
+  logging_dir: "./smollm1229/runs"
+  log_every: 1
+  save_every: 2
+  level: info
+  save_strategy: steps
+
+# lora:
+#   rank: 16
+#   lora_alpha: 12
+#   lora_droput: 0.05
+#   bias: none
+#   task_type: CAUSAL_LM
+

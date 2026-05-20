@@ -1,6 +1,7 @@
 # src/models/model_loader.py
 from __future__ import annotations
 
+import logging
 from typing import Literal, Optional, Tuple
 
 import torch
@@ -11,6 +12,8 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+
+logger = logging.getLogger(__name__)
 
 ModelKind = Literal["qa", "clm"]  # qa = span-extractive, clm = causal language model
 
@@ -50,12 +53,12 @@ def load_model(
     else:
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=trust_remote_code)
 
-    if custom_template and adapter is None:
-        role_tokens = ["<|system|>", "<|user|>", "<|assistant|>"]
-        tokenizer.add_special_tokens({"additional_special_tokens": role_tokens})
-        # Custom template uses {% generation %} tags so assistant_only_loss masks correctly.
-        # EOS must be INSIDE {% generation %} so the model learns to produce it.
-        tokenizer.chat_template = r"""
+
+    logger.debug("all_special_tokens=%s", tokenizer.all_special_tokens)
+    logger.debug("special_tokens_map=%s", tokenizer.special_tokens_map)
+    # Always use custom chat template with {% generation %} tags for assistant_only_loss
+    # EOS must be INSIDE {% generation %} tags so model learns to produce it
+    tokenizer.chat_template = r"""
     {% for message in messages %}
     {% if message['role'] == 'system' -%}
     <|system|>
@@ -91,7 +94,7 @@ def load_model(
             base_model.resize_token_embeddings(len(tokenizer))
             model = PeftModel.from_pretrained(base_model, adapter, torch_dtype=dtype)
             model.train(True)
-            print("Loaded model with adapter from:", adapter)
+            logger.debug("Loaded model with adapter from: %s", adapter)
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_name, torch_dtype=dtype, trust_remote_code=trust_remote_code, **args
@@ -106,9 +109,8 @@ def load_model(
         # Keep model config consistent with tokenizer
         if getattr(model.config, "pad_token_id", None) is None:
             model.config.pad_token_id = tokenizer.pad_token_id
-        model.resize_token_embeddings(len(tokenizer))
-            # Resize ONLY if tokenizer length differs from model embeddings
 
+        # Resize ONLY if tokenizer length differs from model embeddings
         if model.get_input_embeddings().weight.shape[0] != len(tokenizer):
             model.resize_token_embeddings(len(tokenizer))
 

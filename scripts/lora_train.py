@@ -201,28 +201,14 @@ def main():
         custom_template=model_config.custom_template,
         device_map="auto",
     )
-    print("++++++++++++++++++++++++++++++++++++++++++")
-    print(tokenizer.model_max_length)
-    print(model.config.max_position_embeddings)
-    print("++++++++++++++++++++++++++++++++++++++++++++")
-    # Set pad token: prefer existing pad; else use eos; else add new
-    if tokenizer.pad_token is None:
-        if tokenizer.eos_token is not None:
-            tokenizer.pad_token = tokenizer.eos_token
-            logger.warning("Using eos_token as pad_token")
-        else:
-            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-            model.resize_token_embeddings(len(tokenizer))
-            logger.warning("Added new [PAD] token and resized embeddings")
+    logger.debug("tokenizer.model_max_length=%s", tokenizer.model_max_length)
+    logger.debug("model.config.max_position_embeddings=%s", model.config.max_position_embeddings)
 
-    # Make sure model configs align
-    model.config.pad_token_id = tokenizer.pad_token_id
+    # model_loader.py is the single source of truth for tokenizer pad-token setup.
+    # Ensure model generation_config is aligned with tokenizer pad_token_id here.
     if hasattr(model, "generation_config"):
         model.generation_config.pad_token_id = tokenizer.pad_token_id
 
-
-
-    tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
     tokenizer.padding_side = 'left'
     logger.info(f"Pad token: '{tokenizer.pad_token}' (id={tokenizer.pad_token_id})")
 
