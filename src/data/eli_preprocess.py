@@ -3,6 +3,10 @@ Preprocess ELI5 dataset for category prediction task.
 This implements chunking for causal language models
 
 '''
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ELI5Preprocessor_CLM:
     def __init__(self, tokenizer):
@@ -10,31 +14,37 @@ class ELI5Preprocessor_CLM:
         self.block_size = 512
 
     def __call__(self, examples):
-        result = {}
-        print(examples["answers.text"][0])
         answer_token = self.tokenizer(examples["answers.text"][0])
         question_token = self.tokenizer(examples["title"])
 
         input_ids = question_token["input_ids"] + answer_token["input_ids"]
         attention_mask = [1] * len(input_ids)
-        if len(input_ids) >= self.block_size:
-            total_length = (len(input_ids) // self.block_size) * self.block_size
-        result = {
-            "input_ids": [
-                input_ids[i : i + self.block_size]
-                for i in range(0, total_length, self.block_size)
-            ],
-            "attention_mask": [
-                attention_mask[i : i + self.block_size]
-                for i in range(0, total_length, self.block_size)
-            ],
+
+        if len(input_ids) < self.block_size:
+            logger.warning(
+                "Skipping example: sequence length %d is shorter than block_size %d",
+                len(input_ids),
+                self.block_size,
+            )
+            return {"input_ids": [], "attention_mask": [], "labels": []}
+
+        total_length = (len(input_ids) // self.block_size) * self.block_size
+
+        chunked_input_ids = [
+            input_ids[i : i + self.block_size]
+            for i in range(0, total_length, self.block_size)
+        ]
+        chunked_attention_mask = [
+            attention_mask[i : i + self.block_size]
+            for i in range(0, total_length, self.block_size)
+        ]
+
+        return {
+            "input_ids": chunked_input_ids,
+            "attention_mask": chunked_attention_mask,
+            "labels": chunked_input_ids.copy(),
         }
 
-
-        # Split by chunks of block_size.
-        result["labels"] = result["input_ids"].copy()
-
-        return result
 
 """
 Class for preprocessing ELI5 dataset for QA tasks.
