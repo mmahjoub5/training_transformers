@@ -27,46 +27,41 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
-# arg parse for input config
-
-parser = argparse.ArgumentParser(
-        description="Train QA model with YAML config"
-)
-
-parser.add_argument(
-    "--config",
-    type=str,
-    required=True,
-    help="Path to YAML config file (e.g. configs/smollm-135m.yaml)",
-)
-
-parser.add_argument(
-    "--proc",
-    type=int,
-    required=False,
-    default=1,
-    help="Number of processes for data preprocessing",
-)
-
-parser.add_argument(
-    "--resume",
-    action="store_true",
-    help="Resume training from latest checkpoint in output_dir",
-)
-parser.add_argument(
-    "--checkpoint_path",
-    type=str,
-    default=None,
-    help="Path to specific checkpoint to resume from (overrides --resume)",
-)
-parser.add_argument(
-    "--validate-batch",
-    action="store_true",
-    help="Run batch structure validation before training (useful for debugging)",
-)
-
-args = parser.parse_args()
 logger = logging.getLogger(__name__)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Train QA model with YAML config")
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to YAML config file (e.g. configs/smollm-135m.yaml)",
+    )
+    parser.add_argument(
+        "--proc",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of processes for data preprocessing",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume training from latest checkpoint in output_dir",
+    )
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        default=None,
+        help="Path to specific checkpoint to resume from (overrides --resume)",
+    )
+    parser.add_argument(
+        "--validate-batch",
+        action="store_true",
+        help="Run batch structure validation before training (useful for debugging)",
+    )
+    return parser.parse_args()
 
 def _cuda_bf16_supported() -> bool:
     # bf16 is typically supported on Ampere (A100/3090) and newer
@@ -168,6 +163,7 @@ def validate_and_log_batch(trainer, tokenizer, config):
 
 def main():
     """Main training function for LoRA fine-tuning of transformer models."""
+    args = parse_args()
     config = load_config(args.config)
     model_config = ModelConfig.from_dict(config)
     training_config = TrainingConfig.from_dict(config)
