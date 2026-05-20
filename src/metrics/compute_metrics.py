@@ -4,11 +4,8 @@ from typing import Optional
 import numpy as np
 from sklearn.metrics import accuracy_score
 
-
+from src.metrics.metric_utils import compute_token_f1, get_best_valid_answer
 from src.metrics_eval.evaluator import compute_metrics as compute_behavior_metrics
-from src.metrics.metric_utils import get_best_valid_answer, compute_token_f1
-
-
 
 
 class QAMetricsComputer:

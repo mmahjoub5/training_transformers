@@ -2,7 +2,7 @@
 
 
 def test_evaluator_importable_from_src():
-    from src.metrics_eval.evaluator import evaluate, compute_metrics, EvalConfig, GenerationConfig
+    from src.metrics_eval.evaluator import EvalConfig, GenerationConfig, compute_metrics, evaluate
     assert callable(evaluate)
     assert callable(compute_metrics)
     assert EvalConfig is not None
@@ -10,7 +10,7 @@ def test_evaluator_importable_from_src():
 
 
 def test_heuristics_importable_from_src():
-    from src.metrics_eval.heuristics import is_withhold_violation, is_numeric_violation
+    from src.metrics_eval.heuristics import is_numeric_violation, is_withhold_violation
     assert callable(is_withhold_violation)
     assert callable(is_numeric_violation)
 
