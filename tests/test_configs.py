@@ -1,9 +1,11 @@
-"""Tests for YAML config loading and schema validation (issue #17)."""
+"""Tests for YAML config loading, schema validation, and typed config dataclasses."""
 
 import textwrap
 
 import pytest
 
+from src.config.tokenizer_config import TokenizerConfig
+from src.config.training_config import TrainingConfig
 from src.core.config import ConfigValidationError, load_config, validate_config
 
 
@@ -52,14 +54,6 @@ def test_load_config_calls_validation(tmp_path):
     """)
     with pytest.raises(ConfigValidationError, match="training"):
         load_config(path)
-
-
-"""Tests for typed config dataclasses (issue #10)."""
-
-import pytest
-
-from src.config.tokenizer_config import TokenizerConfig
-from src.config.training_config import TrainingConfig
 
 
 def _minimal_training_cfg():
