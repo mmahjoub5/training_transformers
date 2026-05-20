@@ -84,9 +84,7 @@ class TestSocraticPreprocessor:
         assert not hasattr(preprocessor, "messages")
 
 
-"""Tests for data preprocessing classes."""
-
-from src.data.eli_preprocess import ELI5Preprocessor_CLM
+from src.data.eli_preprocess import ELI5Preprocessor_CLM  # noqa: E402
 
 
 class FakeTokenizer:
