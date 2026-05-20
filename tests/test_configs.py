@@ -102,7 +102,8 @@ def test_training_config_seed_default():
 def test_build_training_args_signature_uses_tokenizer_config():
     import inspect
 
-    from src.training.trainer_factory import build_training_args
+    pytest.importorskip("transformers", reason="transformers not installed in CI")
+    from src.training.trainer_factory import build_training_args  # noqa: E402
 
     sig = inspect.signature(build_training_args)
     params = list(sig.parameters)
