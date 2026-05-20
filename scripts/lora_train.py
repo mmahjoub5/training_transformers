@@ -8,11 +8,11 @@ from peft import LoraConfig
 from trl import SFTTrainer
 
 from src.config.deepspeed_config import DeepSpeedConfig
-from src.config.tokenizer_config import TokenizerConfig
 from src.config.logging_config import LoggingConfig
 from src.config.lora_config import LoraConfigSpec
 from src.config.model_config import ModelConfig
 from src.config.profiling_config import ProfilingConfig
+from src.config.tokenizer_config import TokenizerConfig
 from src.config.training_config import TrainingConfig
 from src.core.config import load_config
 from src.data.data_utils import PREPROCESSOR_REGISTRY
