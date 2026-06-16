@@ -31,9 +31,10 @@ class MetricsEvalCallback(TrainerCallback):
         self._eval_subset: Optional[List[Dict[str, Any]]] = None
         self.trainer = None
         self._last_ran_step = None
+        self._pending_logs: Optional[Dict[str, float]] = None
 
     def on_log(self, args, state, control, logs=None, **kwargs):
-        if logs is not None and self._pending_logs:
+        if logs is not None and self._pending_logs is not None:
             logs.update(self._pending_logs)
             self._pending_logs = None
         return control
@@ -116,8 +117,6 @@ class MetricsEvalCallback(TrainerCallback):
         self._pending_logs = {f"custom/{k}": v for k, v in metrics.items()}
         control.should_log = True
 
-
-        self._pending_logs = {f"custom/{k}": v for k, v in metrics.items()}
 
         # also print if you want:
         print(f"[custom-eval step={step}] {metrics}")
